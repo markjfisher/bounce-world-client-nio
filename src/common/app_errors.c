@@ -1,0 +1,23 @@
+#include <cc65.h>
+#include <conio.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+#include "app_errors.h"
+
+uint8_t err = 0;
+
+void handle_err(char *reason)
+{
+    if (err) {
+        gotoxy(0, 20);
+        cputs("Error: ");
+        cputs(reason);
+
+        if (doesclrscrafterexit()) {
+            cgetc();
+        }
+        exit(1);
+    }
+}
