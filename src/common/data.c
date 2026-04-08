@@ -10,20 +10,26 @@ uint32_t    read_offset        = 0;
 uint32_t    write_offset       = 0;
 
 /* Network / app buffers */
+#ifdef __BBC__
+#pragma bss-name(push, "BIGBUF")
+#endif
 char    server_url[80];
 uint8_t app_data[APP_DATA_SIZE];
 uint8_t shapes_buffer[SHAPES_BUFFER_SIZE];
-char    name[9];
-uint8_t name_pad;
-char    clients_buffer[512];
+// char    clients_buffer[512];
 char    broadcast_message[120];
 uint8_t cmd_tmp[64];
+char    name[9];
 char    client_data_cmd[10];
+#ifdef __BBC__
+#pragma bss-name(pop)
+#endif
+uint8_t name_pad;
 uint8_t client_data_cmd_len;
 
-/* Shape records - 50 * 5 bytes = 250 bytes.
+/* Shape records - 50 * 5 bytes = 250 bytes. Although there are only 19
  * shape_data pointers into shapes_buffer above. */
-ShapeRecord shapes[50];
+ShapeRecord shapes[19];
 uint8_t shape_count;
 
 /* CLIENT INFO */

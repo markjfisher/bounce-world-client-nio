@@ -40,10 +40,10 @@ void get_world_state(void)
 /* Fetch up to 512 bytes for all connected clients */
 void get_world_clients(void)
 {
-    memset(clients_buffer, 0, 512);
-    create_command("x-who");
-    send_command();
-    read_response_min((uint8_t *)clients_buffer, 1, 512);
+    // memset(clients_buffer, 0, 512);
+    // create_command("x-who");
+    // send_command();
+    // read_response_min((uint8_t *)clients_buffer, 1, 512);
 }
 
 void get_broadcast(void)

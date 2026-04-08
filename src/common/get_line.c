@@ -1,9 +1,36 @@
 #ifdef __CC65__
 #include <conio.h>
+#include <target.h>
 #include <ctype.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifndef CH_CURS_LEFT
+#if defined(__ATARI__)
+#define CH_CURS_LEFT 30
+#elif defined(__BBC__)
+#define CH_CURS_LEFT 0x88
+#else
+#define CH_CURS_LEFT 8
+#endif
+#endif
+
+#ifndef CH_DEL
+#if defined(__ATARI__)
+#define CH_DEL 0x7E
+#else
+#define CH_DEL 0x7F
+#endif
+#endif
+
+#ifndef CH_ENTER
+#if defined(__ATARI__)
+#define CH_ENTER 0x9B
+#else
+#define CH_ENTER 0x0D
+#endif
+#endif
 
 #include "get_line.h"
 

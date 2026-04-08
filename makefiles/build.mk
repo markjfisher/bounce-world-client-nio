@@ -36,6 +36,10 @@ SOURCES += $(wildcard $(SRCDIR)/common/*.s)
 SOURCES += $(wildcard $(SRCDIR)/$(CURRENT_PLATFORM)/*.c)
 SOURCES += $(wildcard $(SRCDIR)/$(CURRENT_PLATFORM)/*.s)
 
+ifeq ($(CURRENT_TARGET),bbc)
+SOURCES := $(filter-out $(SRCDIR)/common/hex_dump.c,$(SOURCES))
+endif
+
 SOURCES := $(strip $(SOURCES))
 
 # Object files: mirror src/* path under obj/<target>/
@@ -69,9 +73,13 @@ ASFLAGS += --asm-include-dir $(SRCDIR)/include
 ASFLAGS += --asm-include-dir $(SRCDIR)/$(CURRENT_PLATFORM)
 ASFLAGS += --asm-include-dir $(SRCDIR)/common
 ASFLAGS += --asm-include-dir $(SRCDIR)
+ifeq ($(CURRENT_TARGET),bbc)
+ASFLAGS += --asm-include-dir /home/markf/dev/bbc/cc65/libsrc/bbc
+ASFLAGS += --asm-include-dir /home/markf/dev/bbc/cc65/asminc
+endif
 
 LDFLAGS_atari := -C cfg/atari.cfg
-LDFLAGS_bbc   :=
+LDFLAGS_bbc   := -C cfg/bbc.cfg
 LDFLAGS_linux :=
 LDFLAGS = $(LDFLAGS_$(CURRENT_TARGET))
 
@@ -98,13 +106,13 @@ $(OBJDIR)/$(CURRENT_TARGET)/%.o: $(SRCDIR)/%.c | $(OBJDIR)
 else
 $(OBJDIR)/$(CURRENT_TARGET)/%.o: $(SRCDIR)/%.c | $(OBJDIR)
 	@mkdir -p $(dir $@)
-	$(CC) -t $(CURRENT_TARGET) -c --create-dep $(@:.o=.d) $(CFLAGS) -o $@ $<
+	$(CC) -t $(CURRENT_TARGET) -c --create-dep $(@:.o=.d) --listing $(@:.o=.lst) $(CFLAGS) -o $@ $<
 endif
 
 # Assemble .s -> .o
 $(OBJDIR)/$(CURRENT_TARGET)/%.o: $(SRCDIR)/%.s | $(OBJDIR)
 	@mkdir -p $(dir $@)
-	$(CC) -t $(CURRENT_TARGET) -c --create-dep $(@:.o=.d) $(ASFLAGS) -o $@ $<
+	$(CC) -t $(CURRENT_TARGET) -c --create-dep $(@:.o=.d) $(ASFLAGS) --listing $(@:.o=.lst) -o $@ $<
 
 # Ensure lib exists
 $(NIO_LIB_FILE):
@@ -117,7 +125,7 @@ $(BUILD_DIR)/$(PROGRAM_TGT): $(OBJECTS) $(NIO_LIB_FILE) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJECTS) $(LIBS)
 else
 $(BUILD_DIR)/$(PROGRAM_TGT): $(OBJECTS) $(NIO_LIB_FILE) | $(BUILD_DIR)
-	$(CC) -t $(CURRENT_TARGET) $(LDFLAGS) -o $@ $(OBJECTS) $(LIBS)
+	$(CC) -t $(CURRENT_TARGET) $(LDFLAGS) --mapfile $@.map -o $@ $(OBJECTS) $(LIBS)
 endif
 
 $(OBJDIR):

@@ -17,7 +17,7 @@ typedef struct {
     uint8_t width;
 } ShapeLocation;
 
-extern ShapeRecord shapes[50];
+extern ShapeRecord shapes[19];
 
 void get_shapes(void);
 

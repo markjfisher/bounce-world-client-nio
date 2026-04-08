@@ -7,9 +7,9 @@
 #include "shapes.h"
 
 /* WARNING: if these change, need to update data.s too */
-#define SHAPES_BUFFER_SIZE 512
+#define SHAPES_BUFFER_SIZE 180
 /* room for 240 shapes * 3 bytes + header/status = 1024 bytes */
-#define APP_DATA_SIZE      1024
+#define APP_DATA_SIZE      256
 
 /* TCP session handle for the server connection */
 extern fn_handle_t server_handle;
@@ -28,7 +28,7 @@ extern uint8_t app_data[APP_DATA_SIZE];
 
 /* buffer for shapes pixel data strings */
 extern uint8_t shapes_buffer[SHAPES_BUFFER_SIZE];
-extern char    clients_buffer[512];
+// extern char    clients_buffer[512];
 extern char    broadcast_message[120];
 
 extern char    name[9];
@@ -41,7 +41,7 @@ extern char    client_data_cmd[10];
 extern uint8_t client_data_cmd_len;
 
 /* shape records: 50 * 5 bytes = 250 bytes */
-extern ShapeRecord shapes[50];
+extern ShapeRecord shapes[19];
 extern uint8_t shape_count;
 
 extern bool is_darkmode;
