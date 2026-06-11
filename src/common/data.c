@@ -10,20 +10,20 @@ uint32_t    read_offset        = 0;
 uint32_t    write_offset       = 0;
 
 /* Network / app buffers */
-#ifdef __BBC__
-#pragma bss-name(push, "BIGBUF")
-#endif
+// #ifdef __BBC__
+// #pragma bss-name(push, "BIGBUF")
+// #endif
 char    server_url[80];
 uint8_t app_data[APP_DATA_SIZE];
 uint8_t shapes_buffer[SHAPES_BUFFER_SIZE];
 // char    clients_buffer[512];
-char    broadcast_message[120];
+// char    broadcast_message[120];
 uint8_t cmd_tmp[64];
 char    name[9];
 char    client_data_cmd[10];
-#ifdef __BBC__
-#pragma bss-name(pop)
-#endif
+// #ifdef __BBC__
+// #pragma bss-name(pop)
+// #endif
 uint8_t name_pad;
 uint8_t client_data_cmd_len;
 

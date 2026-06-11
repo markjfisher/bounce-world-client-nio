@@ -7,7 +7,7 @@
 #include "shapes.h"
 
 /* WARNING: if these change, need to update data.s too */
-#define SHAPES_BUFFER_SIZE 180
+#define SHAPES_BUFFER_SIZE 160
 /* room for 240 shapes * 3 bytes + header/status = 1024 bytes */
 #define APP_DATA_SIZE      256
 
@@ -29,7 +29,7 @@ extern uint8_t app_data[APP_DATA_SIZE];
 /* buffer for shapes pixel data strings */
 extern uint8_t shapes_buffer[SHAPES_BUFFER_SIZE];
 // extern char    clients_buffer[512];
-extern char    broadcast_message[120];
+// extern char    broadcast_message[120];
 
 extern char    name[9];
 extern uint8_t name_pad;    /* pre-calculated: 9 - strlen(name) */

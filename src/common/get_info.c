@@ -23,7 +23,7 @@
 
 static char endpoint_input[ENDPOINT_LEN + 1];
 
-static char *version = "2.0.3-nio";
+static char *version = "3.0.1";
 
 static char hxp = 4;
 static char txp = 3;
@@ -39,9 +39,10 @@ static void clear_cursor(void)
     cputcxy(0, 0, ' ');
 }
 
-static void get_input(uint8_t x, uint8_t y, uint8_t len, char *s)
+void get_input(uint8_t x, uint8_t y, uint8_t len, char *s)
 {
-    memset(s, ' ', len);
+    memset(s, ' ', len - 1);
+    s[len] = '\0';
     cputsxy(x, y, s);
     *s = '\0';
     gotoxy(x, y);
@@ -50,7 +51,7 @@ static void get_input(uint8_t x, uint8_t y, uint8_t len, char *s)
     clear_cursor();
 }
 
-static void show_header(void)
+void show_header(void)
 {
     clrscr();
     init_sound();
@@ -66,14 +67,14 @@ static void show_header(void)
     chlinexy(hxp - 2, yps + 7, 36);
 }
 
-static void show_server(char *s)
+void show_server(char *s)
 {
     cputsxy(txp, yps + 10, "Bounce Server URL:");
     cputsxy(txp, yps + 11, "> ");
     cputsxy(txp + 2, yps + 11, s);
 }
 
-static void show_name(char *s)
+void show_name(char *s)
 {
     cputsxy(txp, yps + 13, "Your name (max 8):");
     cputsxy(txp, yps + 14, "> ");
@@ -144,6 +145,7 @@ void get_info(void)
 {
     memset(endpoint_input, 0, sizeof(endpoint_input));
     memset(name, 0, sizeof(name));
+    strcpy(name, "bbc");
 
     show_header();
     show_server(endpoint_input);

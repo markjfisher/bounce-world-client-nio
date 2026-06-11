@@ -1,35 +1,11 @@
-#ifdef __CC65__
-#include <conio.h>
-#include <target.h>
 #include <ctype.h>
+#include <stdio.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <string.h>
+#include <conio.h>
 
-#ifndef CH_CURS_LEFT
-#if defined(__ATARI__)
-#define CH_CURS_LEFT 30
-#elif defined(__BBC__)
-#define CH_CURS_LEFT 0x88
-#else
-#define CH_CURS_LEFT 8
-#endif
-#endif
-
-#ifndef CH_DEL
-#if defined(__ATARI__)
-#define CH_DEL 0x7E
-#else
-#define CH_DEL 0x7F
-#endif
-#endif
-
-#ifndef CH_ENTER
-#if defined(__ATARI__)
-#define CH_ENTER 0x9B
-#else
-#define CH_ENTER 0x0D
-#endif
+#ifdef __BBC__
+#include <bbc.h>
 #endif
 
 #include "get_line.h"
@@ -37,41 +13,61 @@
 void get_line(char *buf, uint8_t max_len)
 {
     uint8_t c;
-    uint8_t i       = 0;
+    uint8_t i = 0;
     uint8_t start_x = wherex();
+    uint8_t cur_x;
 
     memset(buf, 0, max_len);
     cursor(1);
 
-    do {
-        c = cgetc();
+    do
+    {
+        c = (uint8_t)cgetc();
+        cur_x = wherex();
 
-        if (isprint(c)) {
-            gotox(start_x + i);
-            if (i == (max_len - 1)) {
+        if (c == '\n')
+        {
+            c = CH_ENTER;
+        }
+
+        if (isprint((int)c))
+        {
+            gotox((uint8_t)(start_x + i));
+            if (i == (uint8_t)(max_len - 1U))
+            {
                 revers(1);
                 cursor(0);
-            } else {
+            }
+            else
+            {
                 revers(0);
                 cursor(1);
             }
             cputc((char)c);
             buf[i] = (char)c;
-            if (i < max_len - 1) {
-                i++;
+            if (i < (uint8_t)(max_len - 1U))
+            {
+                ++i;
             }
-        } else if ((c == CH_CURS_LEFT) || (c == CH_DEL)) {
-            if (i) {
-                uint8_t cur_x = wherex();
-                gotox(cur_x - 1);
-                if (i == (max_len - 1) && buf[i] != '\0') {
+        }
+        else if (c == CH_CURS_LEFT || c == CH_DEL)
+        {
+            if (i != 0)
+            {
+                cur_x = wherex();
+
+                gotox((uint8_t)(cur_x - 1U));
+                if (i == (uint8_t)(max_len - 1U) && buf[i] != '\0')
+                {
                     revers(0);
                     cursor(1);
-                } else {
+                }
+                else
+                {
                     --i;
                 }
                 cputc(' ');
-                gotox(cur_x - 1);
+                gotox((uint8_t)(cur_x - 1U));
                 buf[i] = '\0';
             }
         }
@@ -83,4 +79,3 @@ void get_line(char *buf, uint8_t max_len)
     cputs(buf);
     cursor(0);
 }
-#endif /* __CC65__ */

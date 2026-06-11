@@ -53,6 +53,10 @@ void send_command(void)
     uint16_t len     = (uint16_t)strlen((char *)cmd_tmp);
     uint16_t written = 0;
 
+    /* TCP commands are LF-terminated; the server buffers until newline */
+    strcat((char *)cmd_tmp, "\n");
+    len = (uint16_t)strlen((char *)cmd_tmp);
+
     err = fn_write(server_handle, write_offset,
                    (const uint8_t *)cmd_tmp, len, &written);
     if (err != FN_OK) {
@@ -66,10 +70,17 @@ void send_command(void)
 void request_client_data(void)
 {
     uint16_t written = 0;
+    uint16_t len     = (uint16_t)client_data_cmd_len;
+
+    /* append LF without mutating the cached command buffer */
+    client_data_cmd[len]     = '\n';
+    client_data_cmd[len + 1] = '\0';
 
     err = fn_write(server_handle, write_offset,
                    (const uint8_t *)client_data_cmd,
-                   (uint16_t)client_data_cmd_len, &written);
+                   (uint16_t)(len + 1), &written);
+
+    client_data_cmd[len] = '\0';
     if (err != FN_OK) {
         handle_err("request_client_data");
         return;

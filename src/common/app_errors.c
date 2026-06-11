@@ -10,10 +10,17 @@ uint8_t err = 0;
 
 void handle_err(char *reason)
 {
+    char tmp[6];
     if (err) {
+        itoa((int) err, tmp, 10);
+
         gotoxy(0, 20);
         cputs("Error: ");
         cputs(reason);
+        cputs(" : ");
+        cputs(tmp);
+        cputs("   ");
+        gotoxy(0, wherey() + 1);
 
         if (doesclrscrafterexit()) {
             cgetc();

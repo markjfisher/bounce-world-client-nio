@@ -48,11 +48,11 @@ void get_world_clients(void)
 
 void get_broadcast(void)
 {
-    int n;
-    create_command("x-msg");
-    send_command();
-    n = read_response_min((uint8_t *)broadcast_message, 1, 119);
-    broadcast_message[n] = '\0';
+    // int n;
+    // create_command("x-msg");
+    // send_command();
+    // n = read_response_min((uint8_t *)broadcast_message, 1, 119);
+    // broadcast_message[n] = '\0';
 }
 
 /* Process any pending server commands for this client */
