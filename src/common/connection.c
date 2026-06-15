@@ -53,8 +53,8 @@ void send_command(void)
     uint16_t len     = (uint16_t)strlen((char *)cmd_tmp);
     uint16_t written = 0;
 
-    /* TCP commands are LF-terminated; the server buffers until newline */
-    strcat((char *)cmd_tmp, "\n");
+    /* append LF (0x0A); avoid "\n" which cc65 maps to 0x9B on Atari */
+    strcat((char *)cmd_tmp, "\x0A");
     len = (uint16_t)strlen((char *)cmd_tmp);
 
     err = fn_write(server_handle, write_offset,
@@ -72,8 +72,8 @@ void request_client_data(void)
     uint16_t written = 0;
     uint16_t len     = (uint16_t)client_data_cmd_len;
 
-    /* append LF without mutating the cached command buffer */
-    client_data_cmd[len]     = '\n';
+    /* append LF (0x0A) without mutating the cached command buffer */
+    client_data_cmd[len]     = 0x0A;
     client_data_cmd[len + 1] = '\0';
 
     err = fn_write(server_handle, write_offset,

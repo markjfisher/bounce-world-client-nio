@@ -24,3 +24,5 @@ Makefile.options
 
 assets/*
 !assets/README.md
+
+disk-images/

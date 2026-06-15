@@ -38,6 +38,12 @@ Build all supported targets:
 make
 ```
 
+Build just the BBC Micro version:
+
+```sh
+make bbc
+```
+
 Build just the Linux version:
 
 ```sh
@@ -50,7 +56,26 @@ Clean and rebuild the Linux version:
 make clean linux
 ```
 
-Output binaries are written to `build/`.
+Output binaries are written to `build/`, named by target (e.g. `build/bwcn.bbc`,
+`build/bwcn.linux`).
+
+## BBC SSD disk image
+
+After building the BBC target you can package the binary into a BBC SSD disk
+image (`.ssd` file) suitable for use with emulators or a BBC Micro with a
+FujiNet:
+
+```sh
+make disk
+```
+
+This builds the BBC binary (if needed), then runs
+[`scripts/create_ssd.py`](scripts/create_ssd.py) to produce
+`disk-images/bbc/bwcn.ssd`.  The binary is placed on the disk with a DFS leaf
+name of `BWCN`, load address `&001900`, and execution address `&001900`.
+
+The disk image path is target-scoped so the architecture can be extended for
+future platform disk formats (e.g. Atari `.atr` images).
 
 ## Running on Linux
 

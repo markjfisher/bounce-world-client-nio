@@ -4,6 +4,9 @@ SRCDIR   := src
 BUILD_DIR := build
 OBJDIR   := obj
 
+# Disk image output directory (per-target to support future atari .atr etc.)
+DISK_IMAGE_DIR := disk-images/$(CURRENT_TARGET)
+
 # Platform mapping: target -> platform directory name
 CURRENT_PLATFORM_atari := atari
 CURRENT_PLATFORM_bbc   := bbc
@@ -94,9 +97,17 @@ CFLAGS += $(CFLAGS_$(CURRENT_TARGET))
 # Dependency files  
 -include $(DEPENDS)
 
-.PHONY: all clean
+# Disk image artifacts — populated by platform-specific include below
+DISK_ARTIFACTS :=
+
+# Platform-specific disk packaging rules
+-include makefiles/disk-$(CURRENT_TARGET).mk
+
+.PHONY: all clean disk
 
 all: $(BUILD_DIR)/$(PROGRAM_TGT)
+
+disk: $(DISK_ARTIFACTS)
 
 # Compile .c -> .o
 ifeq ($(CURRENT_TARGET),linux)
@@ -134,5 +145,8 @@ $(OBJDIR):
 $(BUILD_DIR):
 	mkdir -p $@
 
+$(DISK_IMAGE_DIR):
+	mkdir -p $@
+
 clean:
-	rm -rf $(BUILD_DIR)/$(PROGRAM_TGT) $(OBJDIR)/$(CURRENT_TARGET)
+	rm -rf $(BUILD_DIR)/$(PROGRAM_TGT) $(OBJDIR)/$(CURRENT_TARGET) $(DISK_IMAGE_DIR)
