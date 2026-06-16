@@ -6,7 +6,7 @@
 #   make bbc       - Build for BBC Micro
 #   make clean     - Remove build artifacts
 
-TARGETS = atari bbc linux
+TARGETS = bbc linux
 PROGRAM := bwcn
 
 .PHONY: all clean $(TARGETS) disk

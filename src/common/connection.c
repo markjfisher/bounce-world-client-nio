@@ -52,10 +52,19 @@ void send_command(void)
 {
     uint16_t len     = (uint16_t)strlen((char *)cmd_tmp);
     uint16_t written = 0;
+    char     tmp[6];
 
     /* append LF (0x0A); avoid "\n" which cc65 maps to 0x9B on Atari */
     strcat((char *)cmd_tmp, "\x0A");
     len = (uint16_t)strlen((char *)cmd_tmp);
+
+    gotoxy(0, 21);
+    cputs("send: ");
+    cputs((char *)cmd_tmp);
+    cputs(" wo=");
+    itoa(write_offset, tmp, 10);
+    cputs(tmp);
+    cputs("    ");
 
     err = fn_write(server_handle, write_offset,
                    (const uint8_t *)cmd_tmp, len, &written);
@@ -141,6 +150,10 @@ int16_t read_response_wait(uint8_t *buf, int16_t len)
     uint16_t bytes_read = 0;
     uint8_t  flags      = 0;
     uint8_t  result;
+    char     tmp[6];
+    uint8_t  loop_count = 0;
+
+    cputsxy(0, 23, "rrw: start            ");
 
     while (total < len) {
         result = fn_read(server_handle,
@@ -150,7 +163,24 @@ int16_t read_response_wait(uint8_t *buf, int16_t len)
                          &bytes_read,
                          &flags);
 
+        memset(tmp, 0, 6);
+        gotoxy(0, 23);
+        cputs("rrw: r=");
+        itoa(result, tmp, 10);
+        cputs(tmp);
+        cputs(" br=");
+        itoa(bytes_read, tmp, 10);
+        cputs(tmp);
+        cputs(" to=");
+        itoa(total, tmp, 10);
+        cputs(tmp);
+        cputs(" l=");
+        itoa(loop_count, tmp, 10);
+        cputs(tmp);
+        cputs("        ");
+
         if (result == FN_ERR_NOT_READY || result == FN_ERR_BUSY) {
+            loop_count++;
             pause(3);   /* ~50 ms delay */
             continue;
         }
@@ -162,6 +192,7 @@ int16_t read_response_wait(uint8_t *buf, int16_t len)
         }
 
         if (bytes_read == 0) {
+            loop_count++;
             pause(3);
             continue;
         }
@@ -173,6 +204,12 @@ int16_t read_response_wait(uint8_t *buf, int16_t len)
             break;
         }
     }
+
+    gotoxy(0, 23);
+    cputs("rrw: done tot=");
+    itoa(total, tmp, 10);
+    cputs(tmp);
+    cputs("              ");
 
     return total;
 }
@@ -190,6 +227,16 @@ int16_t read_response_min(uint8_t *buf, int16_t min, int16_t max)
     uint16_t bytes_read = 0;
     uint8_t  flags      = 0;
     uint8_t  result;
+    char     tmp[6];
+    uint8_t  loop_count = 0;
+
+    cputsxy(0, 22, "rrm: start min=");
+    itoa(min, tmp, 10);
+    cputs(tmp);
+    cputs(" max=");
+    itoa(max, tmp, 10);
+    cputs(tmp);
+    cputs("               ");
 
     while (total < min) {
         result = fn_read(server_handle,
@@ -199,7 +246,24 @@ int16_t read_response_min(uint8_t *buf, int16_t min, int16_t max)
                          &bytes_read,
                          &flags);
 
+        memset(tmp, 0, 6);
+        gotoxy(0, 22);
+        cputs("rrm: r=");
+        itoa(result, tmp, 10);
+        cputs(tmp);
+        cputs(" br=");
+        itoa(bytes_read, tmp, 10);
+        cputs(tmp);
+        cputs(" to=");
+        itoa(total, tmp, 10);
+        cputs(tmp);
+        cputs(" l=");
+        itoa(loop_count, tmp, 10);
+        cputs(tmp);
+        cputs("        ");
+
         if (result == FN_ERR_NOT_READY || result == FN_ERR_BUSY) {
+            loop_count++;
             pause(3);
             continue;
         }
@@ -211,6 +275,7 @@ int16_t read_response_min(uint8_t *buf, int16_t min, int16_t max)
         }
 
         if (bytes_read == 0) {
+            loop_count++;
             pause(3);
             continue;
         }
@@ -222,6 +287,12 @@ int16_t read_response_min(uint8_t *buf, int16_t min, int16_t max)
             break;
         }
     }
+
+    gotoxy(0, 22);
+    cputs("rrm: done tot=");
+    itoa(total, tmp, 10);
+    cputs(tmp);
+    cputs("              ");
 
     return total;
 }

@@ -1,5 +1,7 @@
 SHELL := /usr/bin/env bash
 
+.DEFAULT_GOAL := all
+
 SRCDIR   := src
 BUILD_DIR := build
 OBJDIR   := obj

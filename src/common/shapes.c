@@ -14,7 +14,7 @@
 #include "hex_dump.h"
 #include "shapes.h"
 
-static void parse_shape_records(const uint8_t *input)
+void parse_shape_records(const uint8_t *input)
 {
     uint8_t  i, j;
     uint8_t  dataLength;
@@ -50,7 +50,7 @@ static void parse_shape_records(const uint8_t *input)
     }
 }
 
-static uint8_t get_shape_count(void)
+uint8_t get_shape_count(void)
 {
     create_command("x-shape-count");
     send_command();
@@ -58,7 +58,7 @@ static uint8_t get_shape_count(void)
     return app_data[0];
 }
 
-static void read_and_parse_shapes_data(void)
+void read_and_parse_shapes_data(void)
 {
     int n;
 
@@ -75,7 +75,7 @@ static void read_and_parse_shapes_data(void)
     parse_shape_records(app_data);
 }
 
-static void display_shape_data(uint8_t n, uint8_t x, uint8_t y)
+void display_shape_data(uint8_t n, uint8_t x, uint8_t y)
 {
     uint8_t i, j;
     uint8_t dataLength;
@@ -109,9 +109,20 @@ void get_shapes(void)
     char    tmp[6];
 
     cputsxy(0, 0, "Beginning parse of shapes data...");
+    gotoxy(0, 21);
+    cputs("call get_shape_count...  ");
     shape_count = get_shape_count();
+    gotoxy(0, 21);
+    cputs("got shape_count=");
+    itoa(shape_count, tmp, 10);
+    cputs(tmp);
+    cputs("        ");
     memset(shapes, 0, sizeof(shapes));
+    gotoxy(0, 21);
+    cputs("call read_and_parse...   ");
     read_and_parse_shapes_data();
+    gotoxy(0, 21);
+    cputs("done read_and_parse      ");
 
     gotoxy(0, 1);
     cputs("Parsed shapes, count: ");
