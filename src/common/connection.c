@@ -14,6 +14,7 @@
  */
 
 #include <conio.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -183,8 +184,11 @@ int16_t read_response_wait(uint8_t *buf, int16_t len)
  * Each call to fn_read returns whatever data is available; we loop until
  * the total reaches `min`.  On NOT_READY, we pause briefly (compensating
  * for network latency) rather than blocking the server.
+ * 
+ * has_length tells us we know that the first 2 bytes of the response contain the packet length
+ * so we can detect fragmentation and loop until we get all the data
  */
-int16_t read_response_min(uint8_t *buf, int16_t min, int16_t max)
+int16_t read_response_min(uint8_t *buf, int16_t min, int16_t max, bool has_length)
 {
     int16_t  total      = 0;
     uint16_t bytes_read = 0;
@@ -220,6 +224,17 @@ int16_t read_response_min(uint8_t *buf, int16_t min, int16_t max)
 
         if (flags & FN_READ_EOF) {
             break;
+        }
+
+        // if has_length is true, and we have more than 2 bytes, check the response's expected payload size from the first 2 bytes
+        // and change min to that value so we keep looping until we get all the data, as it may be fragmented but we know the total size
+        if (has_length && total > 2) {
+            uint16_t length = (buf[1] << 8) | buf[0];
+            // early exit if we have all the data
+            if (total == length) {
+                break;
+            }
+            min = length;
         }
     }
 

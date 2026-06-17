@@ -65,7 +65,7 @@ void read_and_parse_shapes_data(void)
     memset(app_data, 0, APP_DATA_SIZE);
     create_command("x-shape-data");
     send_command();
-    n = read_response_min(app_data, 1, APP_DATA_SIZE);
+    n = read_response_min(app_data, 1, APP_DATA_SIZE, false);
 
     if (n < 0) {
         err = (uint8_t)(-n);

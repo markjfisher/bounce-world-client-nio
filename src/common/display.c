@@ -138,8 +138,8 @@ void show_screen(void)
 {
     uint8_t  i, shape_id;
     int8_t   x, y;
-    uint16_t index            = 3;
-    uint8_t  number_of_shapes = app_data[2];
+    uint16_t index            = 5;
+    uint8_t  number_of_shapes = app_data[4];
 
     swap_buffer();
 

@@ -13,12 +13,12 @@
 #include "keyboard.h"
 #include "world.h"
 
-static char *x_w_cmd = "x-w ";
+static char *x_d_cmd = "x-d ";
 
 void create_client_data_command(void)
 {
     memset(client_data_cmd, 0, sizeof(client_data_cmd));
-    strcpy(client_data_cmd, x_w_cmd);
+    strcpy(client_data_cmd, x_d_cmd);
     strcat(client_data_cmd, client_str);
     client_data_cmd_len = (uint8_t)strlen(client_data_cmd);
 }
@@ -27,7 +27,7 @@ int16_t fetch_client_state(void)
 {
     memset(app_data, 0, APP_DATA_SIZE);
     request_client_data();
-    return read_response_min((uint8_t *)app_data, 1, APP_DATA_SIZE);
+    return read_response_min((uint8_t *)app_data, 3, APP_DATA_SIZE, true);
 }
 
 void get_world_state(void)
@@ -64,7 +64,7 @@ void get_world_cmd(void)
     create_command("x-cmd-get");
     append_command(client_str);
     send_command();
-    n = read_response_min((uint8_t *)app_data, 1, 256);
+    n = read_response_min((uint8_t *)app_data, 1, 256, false);
 
     if (n > 0) {
         for (i = 0; i < (uint8_t)n; i++) {
