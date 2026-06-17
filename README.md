@@ -94,8 +94,13 @@ At startup the client prompts for:
 Enter the server as a TCP endpoint such as:
 
 ```text
-tcp://localhost:9002
+tcp://localhost:9003
 ```
+
+This client uses the server's **framed TCP port** (default 9003). Every response is
+prefixed with a 2-byte little-endian total packet size; the read helpers in
+`connection.c` strip and validate that header automatically. Use `app_payload` (not
+`app_data` directly) when interpreting response data stored in the shared buffer.
 
 If you omit the `tcp://` prefix, the client adds it automatically.
 

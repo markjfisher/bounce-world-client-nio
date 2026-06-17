@@ -138,8 +138,8 @@ void show_screen(void)
 {
     uint8_t  i, shape_id;
     int8_t   x, y;
-    uint16_t index            = 5;
-    uint8_t  number_of_shapes = app_data[4];
+    uint16_t index            = 3;
+    uint8_t  number_of_shapes = app_payload[2];
 
     swap_buffer();
 
@@ -154,9 +154,9 @@ void show_screen(void)
     }
 
     for (i = 0; i < number_of_shapes; ++i) {
-        shape_id = app_data[index++];
-        x        = (int8_t)app_data[index++];
-        y        = (int8_t)app_data[index++];
+        shape_id = app_payload[index++];
+        x        = (int8_t)app_payload[index++];
+        y        = (int8_t)app_payload[index++];
         show_shape(shape_id, x, y);
     }
 

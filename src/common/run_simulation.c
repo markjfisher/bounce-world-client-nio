@@ -37,22 +37,21 @@ void run_simulation(void)
     get_world_clients();
 
     while (is_running_sim) {
-        // first 2 bytes are now the packet length, so we have to skip them
         n = fetch_client_state();
 
         /* Nothing received this round - re-poll */
-        if (n == 3) {
+        if (n <= 0) {
             continue;
         }
 
         /* Handle any app-level status events from the server */
-        app_status = app_data[3];
+        app_status = app_payload[1];
         if (app_status != 0) {
             handle_app_status();
         }
 
         /* Only redraw when the world step has advanced */
-        new_step_id = app_data[2];
+        new_step_id = app_payload[0];
         if (new_step_id != current_step) {
             current_step = new_step_id;
             show_screen();

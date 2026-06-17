@@ -54,8 +54,8 @@ uint8_t get_shape_count(void)
 {
     create_command("x-shape-count");
     send_command();
-    read_response_wait(app_data, 1);
-    return app_data[0];
+    read_response_wait(app_payload, 1);
+    return app_payload[0];
 }
 
 void read_and_parse_shapes_data(void)
@@ -65,14 +65,14 @@ void read_and_parse_shapes_data(void)
     memset(app_data, 0, APP_DATA_SIZE);
     create_command("x-shape-data");
     send_command();
-    n = read_response_min(app_data, 1, APP_DATA_SIZE, false);
+    n = read_response_min(app_data, 1, APP_PAYLOAD_SIZE);
 
     if (n < 0) {
         err = (uint8_t)(-n);
         handle_err("shape data read");
     }
 
-    parse_shape_records(app_data);
+    parse_shape_records(app_payload);
 }
 
 void display_shape_data(uint8_t n, uint8_t x, uint8_t y)

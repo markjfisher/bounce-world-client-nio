@@ -10,6 +10,9 @@
 #define SHAPES_BUFFER_SIZE 160
 /* room for 240 shapes * 3 bytes + header/status = 1024 bytes */
 #define APP_DATA_SIZE      256
+#define PACKET_HEADER_SIZE 2
+#define APP_PAYLOAD_SIZE   (APP_DATA_SIZE - PACKET_HEADER_SIZE)
+
 
 /* TCP session handle for the server connection */
 extern fn_handle_t server_handle;
@@ -23,8 +26,9 @@ extern char    server_url[80];
 /* buffer for commands to send to the server */
 extern uint8_t cmd_tmp[64];
 
-/* scratch buffer for general network data */
+/* scratch buffer for general network data; first 2 bytes hold packet size on read */
 extern uint8_t app_data[APP_DATA_SIZE];
+#define app_payload (&app_data[PACKET_HEADER_SIZE])
 
 /* buffer for shapes pixel data strings */
 extern uint8_t shapes_buffer[SHAPES_BUFFER_SIZE];

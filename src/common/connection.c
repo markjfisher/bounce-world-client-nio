@@ -26,10 +26,8 @@
 #include "connection.h"
 #include "data.h"
 #include "delay.h"
-#include "hex_dump.h"
 #include "press_key.h"
 #include "screen.h"
-#include "shapes.h"
 #include "world.h"
 
 /* -----------------------------------------------------------------------
@@ -129,14 +127,12 @@ void disconnect_service(void)
  * Read helpers
  * --------------------------------------------------------------------- */
 
-/*
- * read_response_wait – blocking read of exactly `len` bytes.
- *
- * Polls fn_read() until `len` cumulative bytes have been received.
- * fn_read returns FN_ERR_NOT_READY when no data is available; we pause
- * briefly and retry until we have enough.
- */
-int16_t read_response_wait(uint8_t *buf, int16_t len)
+static uint16_t packet_size_from_header(const uint8_t *buf)
+{
+    return (uint16_t)buf[0] | ((uint16_t)buf[1] << 8);
+}
+
+static int16_t read_raw(uint8_t *buf, int16_t len)
 {
     int16_t  total      = 0;
     uint16_t bytes_read = 0;
@@ -158,7 +154,7 @@ int16_t read_response_wait(uint8_t *buf, int16_t len)
 
         if (result != FN_OK) {
             err = result;
-            handle_err("read_response_wait");
+            handle_err("read_raw");
             return total;
         }
 
@@ -179,27 +175,58 @@ int16_t read_response_wait(uint8_t *buf, int16_t len)
 }
 
 /*
- * read_response_min – non-blocking read of at least `min` bytes.
- *
- * Each call to fn_read returns whatever data is available; we loop until
- * the total reaches `min`.  On NOT_READY, we pause briefly (compensating
- * for network latency) rather than blocking the server.
- * 
- * has_length tells us we know that the first 2 bytes of the response contain the packet length
- * so we can detect fragmentation and loop until we get all the data
+ * read_response_wait – blocking read of a framed response with an exact
+ * payload length.  The 2-byte little-endian packet size (including those
+ * 2 bytes) is read and validated before payload bytes are stored at
+ * payload_buf.
  */
-int16_t read_response_min(uint8_t *buf, int16_t min, int16_t max, bool has_length)
+int16_t read_response_wait(uint8_t *payload_buf, int16_t payload_len)
 {
-    int16_t  total      = 0;
-    uint16_t bytes_read = 0;
-    uint8_t  flags      = 0;
-    uint8_t  result;
+    uint8_t  header[PACKET_HEADER_SIZE];
+    uint16_t packet_total;
+    int16_t  n;
 
-    while (total < min) {
+    n = read_raw(header, PACKET_HEADER_SIZE);
+    if (n < PACKET_HEADER_SIZE) {
+        return n;
+    }
+
+    packet_total = packet_size_from_header(header);
+    if (packet_total != (uint16_t)(payload_len + PACKET_HEADER_SIZE)) {
+        err = 1;
+        handle_err("read_response_wait size");
+        return -1;
+    }
+
+    return read_raw(payload_buf, payload_len);
+}
+
+/*
+ * read_response_min – read a framed response into buf.
+ *
+ * The full packet (2-byte size prefix + payload) is stored in buf.
+ * Payload begins at buf + PACKET_HEADER_SIZE; when buf is app_data, use
+ * app_payload to access it.  Returns the payload length, or -1 on error.
+ *
+ * min_payload / max_payload refer to the payload only; max_payload must
+ * leave room for the header in buf (e.g. APP_PAYLOAD_SIZE for app_data).
+ */
+int16_t read_response_min(uint8_t *buf, int16_t min_payload, int16_t max_payload)
+{
+    int16_t  total        = 0;
+    uint16_t bytes_read   = 0;
+    uint8_t  flags        = 0;
+    uint8_t  result;
+    int16_t  max_total    = (int16_t)(max_payload + PACKET_HEADER_SIZE);
+    int16_t  need_total   = (int16_t)(min_payload + PACKET_HEADER_SIZE);
+    uint16_t packet_total = 0;
+    bool     have_header  = false;
+
+    while (total < need_total) {
         result = fn_read(server_handle,
                          read_offset,
                          buf + total,
-                         (uint16_t)(max - total),
+                         (uint16_t)(max_total - total),
                          &bytes_read,
                          &flags);
 
@@ -211,7 +238,7 @@ int16_t read_response_min(uint8_t *buf, int16_t min, int16_t max, bool has_lengt
         if (result != FN_OK) {
             err = result;
             handle_err("read_response_min");
-            return total;
+            return -1;
         }
 
         if (bytes_read == 0) {
@@ -226,19 +253,39 @@ int16_t read_response_min(uint8_t *buf, int16_t min, int16_t max, bool has_lengt
             break;
         }
 
-        // if has_length is true, and we have more than 2 bytes, check the response's expected payload size from the first 2 bytes
-        // and change min to that value so we keep looping until we get all the data, as it may be fragmented but we know the total size
-        if (has_length && total > 2) {
-            uint16_t length = (buf[1] << 8) | buf[0];
-            // early exit if we have all the data
-            if (total == length) {
+        if (total >= PACKET_HEADER_SIZE) {
+            if (!have_header) {
+                packet_total = packet_size_from_header(buf);
+                if (packet_total < PACKET_HEADER_SIZE ||
+                    packet_total > (uint16_t)max_total) {
+                    err = 1;
+                    handle_err("read_response_min bad size");
+                    return -1;
+                }
+                need_total   = (int16_t)packet_total;
+                have_header  = true;
+            }
+            if (total >= need_total) {
                 break;
             }
-            min = length;
         }
     }
 
-    return total;
+    if (!have_header) {
+        return 0;
+    }
+
+    if (total < need_total) {
+        return (int16_t)(total - PACKET_HEADER_SIZE);
+    }
+
+    if (packet_total != packet_size_from_header(buf)) {
+        err = 1;
+        handle_err("read_response_min mismatch");
+        return -1;
+    }
+
+    return (int16_t)(packet_total - PACKET_HEADER_SIZE);
 }
 
 /* -----------------------------------------------------------------------
