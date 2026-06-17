@@ -13,6 +13,7 @@ _cache/
 build/
 dist/
 obj/
+/scratch/
 
 # emulator configs
 altirra-debug*.ini

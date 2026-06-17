@@ -103,7 +103,7 @@ void connect_service(void)
         return;
     }
 
-    result = fn_open(&server_handle, 0, server_url, 0);
+    result = fn_open(&server_handle, 0, server_url, FN_OPEN_STREAM_NO_PROBE);
     if (result != FN_OK) {
         err = result;
         handle_err("connect");

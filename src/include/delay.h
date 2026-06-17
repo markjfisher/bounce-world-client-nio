@@ -4,6 +4,6 @@
 #include <stdint.h>
 
 void wait_vsync(void);
-void pause(uint8_t count);
+void __fastcall__ pause(uint8_t count);
 
 #endif /* BWC_DELAY_H */
