@@ -300,9 +300,15 @@ void send_client_data(void)
     memset((char *)app_data, 0, 64);
     strcat((char *)app_data, name);
     strcat((char *)app_data, ",2,");    /* version 2 */
+#ifdef __BBC__
+    itoa(REG_SCREEN_WIDTH,  tmp, 10); strcat((char *)app_data, tmp);
+    strcat((char *)app_data, ",");
+    itoa(REG_SCREEN_HEIGHT, tmp, 10); strcat((char *)app_data, tmp);
+#else
     itoa(SCREEN_WIDTH,  tmp, 10); strcat((char *)app_data, tmp);
     strcat((char *)app_data, ",");
     itoa(SCREEN_HEIGHT, tmp, 10); strcat((char *)app_data, tmp);
+#endif
 
     create_command("x-add-client");
     append_command((char *)app_data);

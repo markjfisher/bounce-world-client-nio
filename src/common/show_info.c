@@ -71,6 +71,10 @@ void show_info(void)
     print_reverse("I"); cputs("nf ");
     print_reverse("Q"); cputs("uit ");
 
+#ifdef __BBC__
+    print_reverse("C"); cputs("ol ");
+#endif
+
 #ifdef __ATARI__
     print_reverse("D"); cputs("rk ");
     cputc('f'); print_reverse("L"); cputs("sh");

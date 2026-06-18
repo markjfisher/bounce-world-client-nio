@@ -1,14 +1,14 @@
-#include <conio.h>
 #include "data.h"
 #include "screen.h"
 
-/*
- * Clear the play area only (top SCREEN_HEIGHT-2 rows when info is showing,
- * or the full screen otherwise).
- *
- * On BBC without hardware double-buffering we do a full clrscr.
- */
 void playfield_clr(void)
 {
-    clrscr();
+    uint8_t max_row = SCREEN_HEIGHT;
+
+    if (is_showing_info) {
+        max_row = SCREEN_HEIGHT - 2;
+    }
+
+    set_blit_rows(max_row);
+    screen_playfield_clear(max_row);
 }

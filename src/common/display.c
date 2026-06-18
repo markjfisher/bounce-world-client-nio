@@ -19,6 +19,10 @@
 #include "world.h"
 #include "who.h"
 
+#ifdef __BBC__
+#include "gfx_shapes.h"
+#endif
+
 #ifdef __ATARI__
 #include <atari.h>
 #include "dlist.h"
@@ -50,6 +54,12 @@ void set_screen_colours(void)
 void init_screen(void)
 {
     clrscr();
+
+#ifdef __BBC__
+    screen_init();
+    screen_playfield_clear(SCREEN_HEIGHT);
+    screen_blit_rows(SCREEN_HEIGHT);
+#endif
 
 #ifdef __ATARI__
     OS.color2 = 0;
@@ -138,8 +148,15 @@ void show_screen(void)
 {
     uint8_t  i, shape_id;
     int8_t   x, y;
+#ifndef __BBC__
     uint16_t index            = 3;
+#endif
     uint8_t  number_of_shapes = app_payload[2];
+    uint8_t  max_row          = SCREEN_HEIGHT;
+
+    if (is_showing_info) {
+        max_row = SCREEN_HEIGHT - 2;
+    }
 
     swap_buffer();
 
@@ -149,16 +166,29 @@ void show_screen(void)
             show_info();
         }
         info_display_count++;
+#ifdef __BBC__
+        set_blit_rows(max_row);
+        screen_playfield_clear(max_row);
+#endif
     } else {
         playfield_clr();
     }
 
+#ifdef __BBC__
+    for (i = 0; i < number_of_shapes; ++i) {
+        shape_id = app_payload[3 + i * 3];
+        x        = (int8_t)app_payload[4 + i * 3];
+        y        = (int8_t)app_payload[5 + i * 3];
+        gfx_show_shape(shape_id, x, y, max_row);
+    }
+#else
     for (i = 0; i < number_of_shapes; ++i) {
         shape_id = app_payload[index++];
         x        = (int8_t)app_payload[index++];
         y        = (int8_t)app_payload[index++];
         show_shape(shape_id, x, y);
     }
+#endif
 
     if (is_showing_clients) {
         show_clients();

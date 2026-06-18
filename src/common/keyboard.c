@@ -13,6 +13,10 @@
 #include "display.h"
 #include "world.h"
 
+#ifdef __BBC__
+#include "screen.h"
+#endif
+
 #ifdef __ATARI__
 #include "dlist.h"
 #endif
@@ -81,6 +85,11 @@ void handle_kb(void)
         case 'w': is_showing_clients = !is_showing_clients; break;
         case 'Q':
         case 'q': is_running_sim = false; break;
+
+#if defined(__BBC__)
+        case 'C':
+        case 'c': gfx_cycle_colour(); break;
+#endif
 
 #if defined(__ATARI__)
         case 'd': toggle_darkmode(); break;

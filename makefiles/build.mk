@@ -105,7 +105,12 @@ DISK_ARTIFACTS :=
 # Platform-specific disk packaging rules
 -include makefiles/disk-$(CURRENT_TARGET).mk
 
-.PHONY: all clean disk
+.PHONY: all clean disk gfx-shapes
+
+gfx-shapes:
+	python3 scripts/gen_gfx_shapes.py \
+	  ../kotlin/bounce-world/server/src/jvmMain/resources/shapes \
+	  src/bbc/gfx_shapes.c
 
 all: $(BUILD_DIR)/$(PROGRAM_TGT)
 
