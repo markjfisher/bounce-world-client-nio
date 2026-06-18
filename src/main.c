@@ -21,28 +21,21 @@
 #include "hex_dump.h"
 #include "get_info.h"
 #include "run_simulation.h"
-#include "shapes.h"
+#include "shapes_preview.h"
 #include "shutdown.h"
 #include "world.h"
 
 int main(void)
 {
-    /* print app information and get the URL/name from the user */
     get_info();
     clrscr();
 
-    /* make a persistent TCP connection to the server */
     connect_service();
-
-    /* fetch shape data, register this client, get initial world state */
-    get_shapes();
     send_client_data();
+    show_shapes_preview();
     get_world_state();
 
-    /* run the simulation loop */
     run_simulation();
-
-    /* cleanup screen/sound etc when simulation ends */
     cleanup_client();
 
     return 0;

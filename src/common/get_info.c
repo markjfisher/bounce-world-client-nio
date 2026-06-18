@@ -15,7 +15,6 @@
 #include "delay.h"
 #include "get_line.h"
 #include "sound.h"
-#include "press_key.h"
 
 /* Maximum lengths for user-entered strings */
 #define ENDPOINT_LEN 60

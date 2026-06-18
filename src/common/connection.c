@@ -26,7 +26,6 @@
 #include "connection.h"
 #include "data.h"
 #include "delay.h"
-#include "press_key.h"
 #include "screen.h"
 #include "world.h"
 
@@ -323,11 +322,5 @@ void send_client_data(void)
     memset(client_str, 0, 8);
     itoa(client_id, client_str, 10);
 
-    cputsxy(10, 19, "Client ID: ");
-    cputsxy(21, 19, client_str);
-
-    /* cache the per-frame request command */
     create_client_data_command();
-
-    press_key();
 }

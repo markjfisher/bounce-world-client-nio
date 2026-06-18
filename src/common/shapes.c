@@ -6,15 +6,14 @@
 #include <string.h>
 
 #include "app_errors.h"
-#include "connection.h"
 #include "convert_chars.h"
 #include "data.h"
-#include "debug.h"
-#include "delay.h"
-#include "hex_dump.h"
 #include "shapes.h"
 
-void parse_shape_records(const uint8_t *input)
+#ifndef __BBC__
+#include "embedded_shapes.h"
+
+static void parse_shape_records(const uint8_t *input)
 {
     uint8_t  i, j;
     uint8_t  dataLength;
@@ -50,30 +49,13 @@ void parse_shape_records(const uint8_t *input)
     }
 }
 
-uint8_t get_shape_count(void)
+void shapes_load_embedded(void)
 {
-    create_command("x-shape-count");
-    send_command();
-    read_response_wait(app_payload, 1);
-    return app_payload[0];
+    shape_count = embedded_shape_count;
+    memset(shapes, 0, sizeof(shapes));
+    parse_shape_records(embedded_shape_data);
 }
-
-void read_and_parse_shapes_data(void)
-{
-    int n;
-
-    memset(app_data, 0, APP_DATA_SIZE);
-    create_command("x-shape-data");
-    send_command();
-    n = read_response_min(app_data, 1, APP_PAYLOAD_SIZE);
-
-    if (n < 0) {
-        err = (uint8_t)(-n);
-        handle_err("shape data read");
-    }
-
-    parse_shape_records(app_payload);
-}
+#endif /* !__BBC__ */
 
 void display_shape_data(uint8_t n, uint8_t x, uint8_t y)
 {
@@ -99,28 +81,5 @@ void display_shape_data(uint8_t n, uint8_t x, uint8_t y)
                 c++;
             }
         }
-    }
-}
-
-void get_shapes(void)
-{
-    uint8_t i;
-    uint8_t x, y;
-    char    tmp[6];
-
-    cputsxy(0, 0, "Beginning parse of shapes data...");
-    shape_count = get_shape_count();
-    memset(shapes, 0, sizeof(shapes));
-    read_and_parse_shapes_data();
-
-    gotoxy(0, 1);
-    cputs("Parsed shapes, count: ");
-    itoa(shape_count, tmp, 10);
-    cputs(tmp);
-
-    for (i = 0; i < shape_count; i++) {
-        x = (uint8_t)((i % 7) * 6);
-        y = (uint8_t)(((uint8_t)(i / 7)) * 6 + 3);
-        display_shape_data(i, x, y);
     }
 }

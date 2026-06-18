@@ -24,6 +24,8 @@
 #define GFX_COLOUR_LAST      (23)
 #define GFX_COLOUR_DEFAULT   (23)
 
+extern uint8_t gfx_colour;
+
 /* MOS screen base pointer (from &0350/&0351, Master-safe). */
 extern uint8_t *screen_visible;
 

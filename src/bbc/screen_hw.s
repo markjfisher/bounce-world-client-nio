@@ -77,8 +77,6 @@ _screen_playfield_clear:
         bcs     @done
 
         sty     tmp2            ; save row index (Y clobbered by fill)
-
-        ldy     tmp2
         jsr     set_row_ptr_y
 
         ldy     #1

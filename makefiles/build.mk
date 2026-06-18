@@ -43,6 +43,7 @@ SOURCES += $(wildcard $(SRCDIR)/$(CURRENT_PLATFORM)/*.s)
 
 ifeq ($(CURRENT_TARGET),bbc)
 SOURCES := $(filter-out $(SRCDIR)/common/hex_dump.c,$(SOURCES))
+SOURCES := $(filter-out $(SRCDIR)/common/embedded_shapes.c,$(SOURCES))
 endif
 
 SOURCES := $(strip $(SOURCES))
@@ -105,12 +106,18 @@ DISK_ARTIFACTS :=
 # Platform-specific disk packaging rules
 -include makefiles/disk-$(CURRENT_TARGET).mk
 
-.PHONY: all clean disk gfx-shapes
+.PHONY: all clean disk gfx-shapes embedded-shapes
 
 gfx-shapes:
 	python3 scripts/gen_gfx_shapes.py \
 	  ../kotlin/bounce-world/server/src/jvmMain/resources/shapes \
 	  src/bbc/gfx_shapes.c
+
+embedded-shapes:
+	python3 scripts/gen_embedded_shapes.py \
+	  ../kotlin/bounce-world/server/src/jvmMain/resources/shapes \
+	  src/common/embedded_shapes.c \
+	  src/include/embedded_shapes.h
 
 all: $(BUILD_DIR)/$(PROGRAM_TGT)
 
