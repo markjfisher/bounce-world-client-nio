@@ -37,6 +37,7 @@ int main(void)
 
     run_simulation();
     cleanup_client();
+    cursor(1);
 
     return 0;
 }

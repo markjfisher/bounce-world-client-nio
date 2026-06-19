@@ -12,6 +12,8 @@ void handle_err(char *reason)
 {
     char tmp[6];
     if (err) {
+        cursor(1);
+
         itoa((int) err, tmp, 10);
 
         gotoxy(0, 20);
