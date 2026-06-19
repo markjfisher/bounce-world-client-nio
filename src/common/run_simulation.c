@@ -25,6 +25,7 @@ void run_simulation(void)
     uint8_t new_step_id;
 
     init_screen();
+    cursor(0);
 
     is_alt_screen        = 0;
     is_running_sim       = 1;

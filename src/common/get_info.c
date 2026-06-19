@@ -98,6 +98,7 @@ static void show_menu(void)
     cputs("Press a key to continue");
     revers(0);
     chlinexy(txp + 3, 23, 28);
+    cursor(0);
 }
 
 /* -----------------------------------------------------------------------

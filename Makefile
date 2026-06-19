@@ -1,12 +1,13 @@
 # bounce-world-client-nio Makefile
 #
 # Usage:
+#   export FUJINET_NIO_LIB=/path/to/fujinet-nio-lib
 #   make           - Build all targets
 #   make atari     - Build for Atari
-#   make bbc       - Build for BBC Micro
-#   make clean     - Remove build artifacts
+#
+# Other targets: bbc, linux, msdos
 
-TARGETS = atari bbc linux
+TARGETS = atari bbc linux msdos
 PROGRAM := bwcn
 
 .PHONY: all clean $(TARGETS) disk

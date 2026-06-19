@@ -17,6 +17,7 @@ Current build targets are:
 - `atari`
 - `bbc`
 - `linux`
+- `msdos`
 
 ## Build prerequisites
 
@@ -24,17 +25,21 @@ You will need:
 
 - `make`
 - `gcc` for the Linux target
+- Open Watcom for the MS-DOS target
 - `cl65` / cc65 for the 8-bit targets
-- A checkout of `fujinet-nio-lib` at `../fujinet-nio-lib`
+- `FUJINET_NIO_LIB` pointing at a checkout of `fujinet-nio-lib`
 - The `bbc` target fork of cc65 from https://github.com/markjfisher/cc65 to compile for the BBC
 
-The Linux client links against the Linux build of `fujinet-nio-lib`, and the retro builds link against the corresponding platform libraries.
+The Linux and MS-DOS clients link against the corresponding direct NIO builds of
+`fujinet-nio-lib`, and the retro builds link against their matching platform
+libraries.
 
 ## Building
 
 Build all supported targets:
 
 ```sh
+export FUJINET_NIO_LIB=$HOME/dev/nio/repos/fujinet-nio-lib
 make
 ```
 
@@ -50,6 +55,13 @@ Build just the Linux version:
 make linux
 ```
 
+Build just the MS-DOS version:
+
+```sh
+source ~/.local/bin/add_watcom.sh
+make msdos
+```
+
 Clean and rebuild the Linux version:
 
 ```sh
@@ -57,7 +69,7 @@ make clean linux
 ```
 
 Output binaries are written to `build/`, named by target (e.g. `build/bwcn.bbc`,
-`build/bwcn.linux`).
+`build/bwcn.linux`, `build/bwcn.msdos.exe`).
 
 ## BBC SSD disk image
 
@@ -104,9 +116,32 @@ prefixed with a 2-byte little-endian total packet size; the read helpers in
 
 If you omit the `tcp://` prefix, the client adds it automatically.
 
+## Running on MS-DOS
+
+The MS-DOS build talks to `fujinet-nio` through the MS-DOS COM serial channel in
+`fujinet-nio-lib`. Build it with Open Watcom available:
+
+```sh
+source ~/.local/bin/add_watcom.sh
+export FUJINET_NIO_LIB=$HOME/dev/nio/repos/fujinet-nio-lib
+make msdos
+```
+
+The resulting executable is:
+
+```text
+build/bwcn.msdos.exe
+```
+
+The default library channel is COM1 at 115200 baud. If you need a different COM
+port or baud divisor, rebuild `fujinet-nio-lib` for `msdos` with the relevant
+`FN_MSDOS_COM` / `FN_MSDOS_BAUD_DIVISOR` target flags before rebuilding this
+client.
+
 ## Notes on the Linux client
 
 - The Linux target uses the same shared gameplay/network client logic as the retro builds.
+- The MS-DOS target uses the same shared gameplay/network client logic and a small DOS console shim.
 - The Linux platform layer implements the cc65-style console APIs needed by the client, using a terminal-friendly renderer.
 - Neutral shape codes from the server are converted back into real box-drawing and block characters on Linux terminals.
 

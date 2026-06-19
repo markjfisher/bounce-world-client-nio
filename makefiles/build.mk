@@ -13,25 +13,38 @@ DISK_IMAGE_DIR := disk-images/$(CURRENT_TARGET)
 CURRENT_PLATFORM_atari := atari
 CURRENT_PLATFORM_bbc   := bbc
 CURRENT_PLATFORM_linux := linux
+CURRENT_PLATFORM_msdos := msdos
 
 CURRENT_PLATFORM = $(CURRENT_PLATFORM_$(CURRENT_TARGET))
 
 ifeq ($(CURRENT_PLATFORM),)
-$(error Unknown target: $(CURRENT_TARGET). Supported: atari bbc linux)
+$(error Unknown target: $(CURRENT_TARGET). Supported: atari bbc linux msdos)
 endif
 
-# fujinet-nio-lib base directory
-NIO_LIB_DIR := ../fujinet-nio-lib
+# fujinet-nio-lib base directory (required; relative to project root or absolute)
+ifeq ($(FUJINET_NIO_LIB),)
+$(error FUJINET_NIO_LIB is not defined. Set it to the fujinet-nio-lib repository.)
+endif
+
+ifeq ($(wildcard $(FUJINET_NIO_LIB)/include/fujinet-nio.h),)
+$(error FUJINET_NIO_LIB does not exist or is invalid: $(FUJINET_NIO_LIB))
+endif
+
+NIO_LIB_DIR := $(FUJINET_NIO_LIB)
 
 # Library include path and library file per target
 NIO_LIB_INC  := $(NIO_LIB_DIR)/include
 NIO_LIB_FILE_atari := $(NIO_LIB_DIR)/build/fujinet-nio-atari.lib
 NIO_LIB_FILE_bbc   := $(NIO_LIB_DIR)/build/fujinet-nio-bbc.lib
 NIO_LIB_FILE_linux := $(NIO_LIB_DIR)/build/fujinet-nio-linux.a
+NIO_LIB_FILE_msdos := $(NIO_LIB_DIR)/build/fujinet-nio-msdos.lib
 
 NIO_LIB_FILE = $(NIO_LIB_FILE_$(CURRENT_TARGET))
 
 PROGRAM_TGT := $(PROGRAM).$(CURRENT_TARGET)
+ifeq ($(CURRENT_TARGET),msdos)
+PROGRAM_TGT := $(PROGRAM).msdos.exe
+endif
 
 # Source files: root src/, common/, and platform-specific
 SOURCES :=
@@ -61,12 +74,19 @@ DEPENDS  := $(OBJECTS:.o=.d)
 CC_atari := cl65
 CC_bbc   := cl65
 CC_linux := gcc
+CC_msdos := wcc
+LD_msdos := wcl
 CC = $(CC_$(CURRENT_TARGET))
+LD = $(LD_$(CURRENT_TARGET))
+ifeq ($(LD),)
+LD := $(CC)
+endif
 
 CFLAGS :=
 CFLAGS_atari_common := -Osir
 CFLAGS_bbc_common   := -Osir
 CFLAGS_linux_common := -Wall -Wextra -O2 -std=c99
+CFLAGS_msdos_common := -0 -bt=dos -os -ms -s -q
 CFLAGS += $(CFLAGS_$(CURRENT_TARGET)_common)
 CFLAGS += -I$(SRCDIR)/include
 CFLAGS += -I$(SRCDIR)/$(CURRENT_PLATFORM)
@@ -87,6 +107,7 @@ endif
 LDFLAGS_atari := -C cfg/atari.cfg
 LDFLAGS_bbc   := -C cfg/bbc.cfg
 LDFLAGS_linux :=
+LDFLAGS_msdos := -q -0 -bt=dos -ms
 LDFLAGS = $(LDFLAGS_$(CURRENT_TARGET))
 
 LIBS  = $(NIO_LIB_FILE)
@@ -95,6 +116,7 @@ LIBS  = $(NIO_LIB_FILE)
 CFLAGS_atari := -DBWC_CUSTOM_CPUTC
 CFLAGS_bbc   :=
 CFLAGS_linux :=
+CFLAGS_msdos :=
 CFLAGS += $(CFLAGS_$(CURRENT_TARGET))
 
 # Dependency files  
@@ -128,6 +150,10 @@ ifeq ($(CURRENT_TARGET),linux)
 $(OBJDIR)/$(CURRENT_TARGET)/%.o: $(SRCDIR)/%.c | $(OBJDIR)
 	@mkdir -p $(dir $@)
 	$(CC) -c $(CFLAGS) -MMD -MF $(@:.o=.d) -o $@ $<
+else ifeq ($(CURRENT_TARGET),msdos)
+$(OBJDIR)/$(CURRENT_TARGET)/%.o: $(SRCDIR)/%.c | $(OBJDIR)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -fo=$@ $<
 else
 $(OBJDIR)/$(CURRENT_TARGET)/%.o: $(SRCDIR)/%.c | $(OBJDIR)
 	@mkdir -p $(dir $@)
@@ -148,6 +174,9 @@ $(NIO_LIB_FILE):
 ifeq ($(CURRENT_TARGET),linux)
 $(BUILD_DIR)/$(PROGRAM_TGT): $(OBJECTS) $(NIO_LIB_FILE) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJECTS) $(LIBS)
+else ifeq ($(CURRENT_TARGET),msdos)
+$(BUILD_DIR)/$(PROGRAM_TGT): $(OBJECTS) $(NIO_LIB_FILE) | $(BUILD_DIR)
+	$(LD) $(LDFLAGS) -fe=$@ $(OBJECTS) $(LIBS)
 else
 $(BUILD_DIR)/$(PROGRAM_TGT): $(OBJECTS) $(NIO_LIB_FILE) | $(BUILD_DIR)
 	$(CC) -t $(CURRENT_TARGET) $(LDFLAGS) --mapfile $@.map -Ln $@.lbl -o $@ $(OBJECTS) $(LIBS)

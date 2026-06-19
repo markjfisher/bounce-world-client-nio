@@ -1,6 +1,5 @@
 #include <conio.h>
 #include <stdint.h>
-#include <string.h>
 
 #include "data.h"
 #include "delay.h"
