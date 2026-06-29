@@ -7,7 +7,7 @@ void append_command(char *cmd);
 void connect_service(void);
 void create_command(char *cmd);
 void disconnect_service(void);
-void request_client_data(void);
+uint8_t request_client_data(void);
 void send_client_data(void);
 void send_command(void);
 

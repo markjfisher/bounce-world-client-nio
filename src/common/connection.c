@@ -65,7 +65,7 @@ void send_command(void)
 }
 
 /* Write the cached per-frame "x-w <id>" request */
-void request_client_data(void)
+uint8_t request_client_data(void)
 {
     uint16_t written = 0;
     uint16_t len     = (uint16_t)client_data_cmd_len;
@@ -95,10 +95,17 @@ void request_client_data(void)
 
     client_data_cmd[len] = '\0';
     if (err != FN_OK) {
+#ifdef BWC_IGNORE_TRANSIENT_CLIENT_IO
+        if (err == FN_ERR_IO || err == FN_ERR_TIMEOUT ||
+            err == FN_ERR_BUSY || err == FN_ERR_NOT_READY) {
+            return 0;
+        }
+#endif
         handle_err("request_client_data");
-        return;
+        return 0;
     }
     write_offset += (uint32_t)written;
+    return 1;
 }
 
 /* -----------------------------------------------------------------------

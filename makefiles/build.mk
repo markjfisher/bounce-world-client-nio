@@ -38,6 +38,7 @@ NIO_LIB_FILE_atari := $(NIO_LIB_DIR)/build/fujinet-nio-atari.lib
 NIO_LIB_FILE_bbc   := $(NIO_LIB_DIR)/build/fujinet-nio-bbc.lib
 NIO_LIB_FILE_linux := $(NIO_LIB_DIR)/build/fujinet-nio-linux.a
 MSDOS_NIO_BACKEND ?= ioctl
+BWC_CLIENT_IO_POLICY ?= stop
 NIO_LIB_FILE_msdos-serial := $(NIO_LIB_DIR)/build/fujinet-nio-msdos-serial.lib
 NIO_LIB_FILE_msdos-ioctl  := $(NIO_LIB_DIR)/build/fujinet-nio-msdos-ioctl.lib
 NIO_LIB_FILE_msdos-f5     := $(NIO_LIB_DIR)/build/fujinet-nio-msdos-f5.lib
@@ -124,6 +125,9 @@ CFLAGS_msdos :=
 ifeq ($(CURRENT_TARGET),msdos)
 ifeq ($(MSDOS_NIO_BACKEND),ioctl)
 CFLAGS_msdos += -DBWC_MSDOS_IOCTL_DIAG
+endif
+ifeq ($(BWC_CLIENT_IO_POLICY),continue)
+CFLAGS_msdos += -DBWC_IGNORE_TRANSIENT_CLIENT_IO
 endif
 endif
 CFLAGS += $(CFLAGS_$(CURRENT_TARGET))

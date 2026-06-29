@@ -26,7 +26,9 @@ void create_client_data_command(void)
 int16_t fetch_client_state(void)
 {
     memset(app_data, 0, APP_DATA_SIZE);
-    request_client_data();
+    if (!request_client_data()) {
+        return 0;
+    }
     return read_response_min(app_data, 1, APP_PAYLOAD_SIZE);
 }
 
