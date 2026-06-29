@@ -69,14 +69,29 @@ void request_client_data(void)
 {
     uint16_t written = 0;
     uint16_t len     = (uint16_t)client_data_cmd_len;
+    uint8_t attempt;
 
     /* append LF (0x0A) without mutating the cached command buffer */
     client_data_cmd[len]     = 0x0A;
     client_data_cmd[len + 1] = '\0';
 
-    err = fn_write(server_handle, write_offset,
-                   (const uint8_t *)client_data_cmd,
-                   (uint16_t)(len + 1), &written);
+    for (attempt = 0; attempt < 3; ++attempt) {
+        written = 0;
+        err = fn_write(server_handle, write_offset,
+                       (const uint8_t *)client_data_cmd,
+                       (uint16_t)(len + 1), &written);
+
+        if (err == FN_OK) {
+            break;
+        }
+
+        if (err != FN_ERR_IO && err != FN_ERR_TIMEOUT &&
+            err != FN_ERR_BUSY && err != FN_ERR_NOT_READY) {
+            break;
+        }
+
+        pause(3);
+    }
 
     client_data_cmd[len] = '\0';
     if (err != FN_OK) {
@@ -129,6 +144,31 @@ void disconnect_service(void)
 static uint16_t packet_size_from_header(const uint8_t *buf)
 {
     return (uint16_t)buf[0] | ((uint16_t)buf[1] << 8);
+}
+
+static void put_hex8(uint8_t value)
+{
+    static const char hex[] = "0123456789ABCDEF";
+
+    cputc(hex[(value >> 4) & 0x0F]);
+    cputc(hex[value & 0x0F]);
+}
+
+static void print_bad_packet_size(const uint8_t *buf, uint16_t packet_total, int16_t total)
+{
+    char tmp[7];
+
+    gotoxy(0, 21);
+    cputs("PKT h=");
+    put_hex8(buf[0]);
+    put_hex8(buf[1]);
+    cputs(" size=");
+    itoa((int)packet_total, tmp, 10);
+    cputs(tmp);
+    cputs(" got=");
+    itoa((int)total, tmp, 10);
+    cputs(tmp);
+    cputs("   ");
 }
 
 static int16_t read_raw(uint8_t *buf, int16_t len)
@@ -258,6 +298,7 @@ int16_t read_response_min(uint8_t *buf, int16_t min_payload, int16_t max_payload
                 if (packet_total < PACKET_HEADER_SIZE ||
                     packet_total > (uint16_t)max_total) {
                     err = 1;
+                    print_bad_packet_size(buf, packet_total, total);
                     handle_err("read_response_min bad size");
                     return -1;
                 }

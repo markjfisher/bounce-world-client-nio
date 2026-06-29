@@ -30,9 +30,9 @@ You will need:
 - `FUJINET_NIO_LIB` pointing at a checkout of `fujinet-nio-lib`
 - The `bbc` target fork of cc65 from https://github.com/markjfisher/cc65 to compile for the BBC
 
-The Linux and MS-DOS clients link against the corresponding direct NIO builds of
-`fujinet-nio-lib`, and the retro builds link against their matching platform
-libraries.
+The Linux client links against the direct NIO build of `fujinet-nio-lib`. The
+default MS-DOS build links against the `msdos-ioctl` backend, so it talks to the
+resident NIO build of `FUJINET.SYS` instead of taking ownership of COM1.
 
 ## Building
 
@@ -133,10 +133,21 @@ The resulting executable is:
 build/bwcn.msdos.exe
 ```
 
-The default library channel is COM1 at 115200 baud. If you need a different COM
-port or baud divisor, rebuild `fujinet-nio-lib` for `msdos` with the relevant
-`FN_MSDOS_COM` / `FN_MSDOS_BAUD_DIVISOR` target flags before rebuilding this
-client.
+The default MS-DOS backend is `ioctl`, which requires the NIO `FUJINET.SYS`
+block driver to be loaded from `CONFIG.SYS`. This is the correct mode when the
+application is loaded from a FujiNet-hosted DOS drive because the driver remains
+the single owner of COM1.
+
+For direct serial testing without `FUJINET.SYS`, build with:
+
+```sh
+# ensure watcom is on your path
+export FUJINET_NIO_LIB=$HOME/path/to/fujinet-nio-lib
+make msdos MSDOS_NIO_BACKEND=serial
+```
+
+The serial backend uses COM1 at 115200 baud unless `fujinet-nio-lib` is rebuilt
+with different `FN_MSDOS_COM` / `FN_MSDOS_BAUD_DIVISOR` flags.
 
 ## Notes on the Linux client
 

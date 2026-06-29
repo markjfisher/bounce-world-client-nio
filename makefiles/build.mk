@@ -37,7 +37,11 @@ NIO_LIB_INC  := $(NIO_LIB_DIR)/include
 NIO_LIB_FILE_atari := $(NIO_LIB_DIR)/build/fujinet-nio-atari.lib
 NIO_LIB_FILE_bbc   := $(NIO_LIB_DIR)/build/fujinet-nio-bbc.lib
 NIO_LIB_FILE_linux := $(NIO_LIB_DIR)/build/fujinet-nio-linux.a
-NIO_LIB_FILE_msdos := $(NIO_LIB_DIR)/build/fujinet-nio-msdos.lib
+MSDOS_NIO_BACKEND ?= ioctl
+NIO_LIB_FILE_msdos-serial := $(NIO_LIB_DIR)/build/fujinet-nio-msdos-serial.lib
+NIO_LIB_FILE_msdos-ioctl  := $(NIO_LIB_DIR)/build/fujinet-nio-msdos-ioctl.lib
+NIO_LIB_FILE_msdos-f5     := $(NIO_LIB_DIR)/build/fujinet-nio-msdos-f5.lib
+NIO_LIB_FILE_msdos := $(NIO_LIB_FILE_msdos-$(MSDOS_NIO_BACKEND))
 
 NIO_LIB_FILE = $(NIO_LIB_FILE_$(CURRENT_TARGET))
 
@@ -117,6 +121,11 @@ CFLAGS_atari := -DBWC_CUSTOM_CPUTC
 CFLAGS_bbc   :=
 CFLAGS_linux :=
 CFLAGS_msdos :=
+ifeq ($(CURRENT_TARGET),msdos)
+ifeq ($(MSDOS_NIO_BACKEND),ioctl)
+CFLAGS_msdos += -DBWC_MSDOS_IOCTL_DIAG
+endif
+endif
 CFLAGS += $(CFLAGS_$(CURRENT_TARGET))
 
 # Dependency files  
@@ -168,7 +177,11 @@ $(OBJDIR)/$(CURRENT_TARGET)/%.o: $(SRCDIR)/%.s | $(OBJDIR)
 # Ensure lib exists
 $(NIO_LIB_FILE):
 	@echo "Building fujinet-nio-lib for $(CURRENT_TARGET)..."
+ifeq ($(CURRENT_TARGET),msdos)
+	$(MAKE) -C $(NIO_LIB_DIR) msdos-$(MSDOS_NIO_BACKEND)
+else
 	$(MAKE) -C $(NIO_LIB_DIR) $(CURRENT_TARGET)
+endif
 
 # Link
 ifeq ($(CURRENT_TARGET),linux)
