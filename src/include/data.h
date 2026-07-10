@@ -8,10 +8,13 @@
 
 /* WARNING: if these change, need to update data.s too */
 #define SHAPES_BUFFER_SIZE 160
-/* room for 240 shapes * 3 bytes + header/status = 1024 bytes */
+/* enough for the live world packet; larger auxiliary responses can be drained */
 #define APP_DATA_SIZE      256
 #define PACKET_HEADER_SIZE 2
 #define APP_PAYLOAD_SIZE   (APP_DATA_SIZE - PACKET_HEADER_SIZE)
+#define CLIENT_ROWS_MAX    20
+#define CLIENT_NAME_WIDTH  8
+#define BROADCAST_MAX_LEN  119
 
 
 /* TCP session handle for the server connection */
@@ -32,8 +35,9 @@ extern uint8_t app_data[APP_DATA_SIZE];
 
 /* buffer for shapes pixel data strings */
 extern uint8_t shapes_buffer[SHAPES_BUFFER_SIZE];
-// extern char    clients_buffer[512];
-// extern char    broadcast_message[120];
+extern char    clients_buffer[CLIENT_ROWS_MAX * CLIENT_NAME_WIDTH];
+extern uint8_t clients_buffer_count;
+extern char    broadcast_message[BROADCAST_MAX_LEN + 1];
 
 extern char    name[9];
 extern uint8_t name_pad;    /* pre-calculated: 9 - strlen(name) */
@@ -44,7 +48,7 @@ extern char    client_str[8];
 extern char    client_data_cmd[10];
 extern uint8_t client_data_cmd_len;
 
-/* shape records: 50 * 5 bytes = 250 bytes */
+/* embedded shape records */
 extern ShapeRecord shapes[19];
 extern uint8_t shape_count;
 

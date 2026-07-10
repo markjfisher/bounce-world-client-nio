@@ -2,8 +2,7 @@
  * get_info.c
  *
  * Welcome screen and startup configuration.
- * Appkey/persistent storage is not available in fujinet-nio-lib v1,
- * so the user must enter the server URL and their name on every startup.
+ * Saved endpoint/name values are stored through fujinet-nio app-store.
  */
 
 #include <conio.h>
@@ -11,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "appstore_settings.h"
 #include "data.h"
 #include "delay.h"
 #include "get_line.h"
@@ -101,6 +101,22 @@ static void show_menu(void)
     cursor(0);
 }
 
+static void show_store_error(void)
+{
+    char tmp[6];
+
+    itoa((int)appstore_last_error(), tmp, 10);
+    gotoxy(txp + 3, 18);
+    cputs("Storage err ");
+    cputs(tmp);
+    cputs("   ");
+}
+
+static void clear_store_error(void)
+{
+    cputsxy(txp + 3, 18, "                  ");
+}
+
 /* -----------------------------------------------------------------------
  * Input loop: S = change server, N = change name, other = continue
  * --------------------------------------------------------------------- */
@@ -118,12 +134,22 @@ static void get_info_changes(void)
             case 'S':
             case 's':
                 get_input(txp + 2, yps + 11, ENDPOINT_LEN, endpoint_input);
+                if (appstore_write_setting(endpoint_input, APPSTORE_KEY_ENDPOINT)) {
+                    clear_store_error();
+                } else {
+                    show_store_error();
+                }
                 show_server(endpoint_input);
                 break;
 
             case 'N':
             case 'n':
                 get_input(txp + 2, yps + 14, NAME_LEN, name);
+                if (appstore_write_setting(name, APPSTORE_KEY_NAME)) {
+                    clear_store_error();
+                } else {
+                    show_store_error();
+                }
                 show_name(name);
                 break;
 
@@ -145,9 +171,10 @@ void get_info(void)
 {
     memset(endpoint_input, 0, sizeof(endpoint_input));
     memset(name, 0, sizeof(name));
-    strcpy(name, "bbc");
 
     show_header();
+    appstore_read_setting(endpoint_input, sizeof(endpoint_input), APPSTORE_KEY_ENDPOINT);
+    appstore_read_setting(name, sizeof(name), APPSTORE_KEY_NAME);
     show_server(endpoint_input);
     show_name(name);
     show_menu();

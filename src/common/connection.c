@@ -335,6 +335,64 @@ int16_t read_response_min(uint8_t *buf, int16_t min_payload, int16_t max_payload
     return (int16_t)(packet_total - PACKET_HEADER_SIZE);
 }
 
+/*
+ * read_response_prefix – read a framed response, keep only the first
+ * payload_capacity bytes, and drain the rest from the stream.
+ *
+ * This is used for responses such as x-who where the server can return more
+ * rows than the client can display. It avoids a large permanent receive buffer.
+ */
+int16_t read_response_prefix(uint8_t *payload_buf, int16_t payload_capacity)
+{
+    uint8_t  header[PACKET_HEADER_SIZE];
+    uint16_t packet_total;
+    int16_t  payload_total;
+    int16_t  keep_len;
+    int16_t  remaining;
+    int16_t  chunk;
+    int16_t  n;
+
+    n = read_raw(header, PACKET_HEADER_SIZE);
+    if (n < PACKET_HEADER_SIZE) {
+        return n;
+    }
+
+    packet_total = packet_size_from_header(header);
+    if (packet_total < PACKET_HEADER_SIZE) {
+        err = 1;
+        handle_err("read_response_prefix size");
+        return -1;
+    }
+
+    payload_total = (int16_t)(packet_total - PACKET_HEADER_SIZE);
+    keep_len = payload_total;
+    if (keep_len > payload_capacity) {
+        keep_len = payload_capacity;
+    }
+
+    if (keep_len > 0) {
+        n = read_raw(payload_buf, keep_len);
+        if (n < keep_len) {
+            return n;
+        }
+    }
+
+    remaining = (int16_t)(payload_total - keep_len);
+    while (remaining > 0) {
+        chunk = remaining;
+        if (chunk > APP_DATA_SIZE) {
+            chunk = APP_DATA_SIZE;
+        }
+        n = read_raw(app_data, chunk);
+        if (n < chunk) {
+            return n;
+        }
+        remaining = (int16_t)(remaining - chunk);
+    }
+
+    return keep_len;
+}
+
 /* -----------------------------------------------------------------------
  * Client registration
  * --------------------------------------------------------------------- */

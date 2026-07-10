@@ -152,11 +152,13 @@ void show_screen(void)
     uint16_t index            = 3;
 #endif
     uint8_t  number_of_shapes = app_payload[2];
+#ifdef __BBC__
     uint8_t  max_row          = SCREEN_HEIGHT;
 
     if (is_showing_info) {
         max_row = SCREEN_HEIGHT - 2;
     }
+#endif
 
     swap_buffer();
 

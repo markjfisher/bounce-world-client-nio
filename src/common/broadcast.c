@@ -21,60 +21,56 @@
 
 void broadcast(void)
 {
-    // char    lineBuffer[MAX_WIDTH + 1];
-    // uint8_t i, lineLen, wordLen, startCol, startRow = 4;
-    // char   *msgPtr, *wordPtr;
+    char    lineBuffer[MAX_WIDTH + 1];
+    uint8_t i;
+    uint8_t lineLen = 0;
+    uint8_t startCol;
+    uint8_t startRow = 4;
+    char   *msgPtr = broadcast_message;
 
-    // startCol = (SCREEN_WIDTH - MAX_WIDTH) / 2 - 1;
+    if (broadcast_message[0] == '\0') {
+        return;
+    }
 
-    // gotoxy(startCol, startRow++);
-    // cputc(CH_ULCORNER);
-    // for (i = 0; i < MAX_WIDTH; i++) cputc(CH_HLINE);
-    // cputc(CH_URCORNER);
+    startCol = (SCREEN_WIDTH - MAX_WIDTH) / 2 - 1;
 
-    // msgPtr = broadcast_message;
-    // lineBuffer[0] = '\0';
-    // lineLen = 0;
+    gotoxy(startCol, startRow++);
+    cputc(CH_ULCORNER);
+    for (i = 0; i < MAX_WIDTH; i++) cputc(CH_HLINE);
+    cputc(CH_URCORNER);
 
-    // while (*msgPtr) {
-    //     for (wordPtr = msgPtr; *wordPtr && *wordPtr != ' '; wordPtr++) ;
-    //     wordLen = (uint8_t)(wordPtr - msgPtr);
+    memset(lineBuffer, ' ', MAX_WIDTH);
+    lineBuffer[MAX_WIDTH] = '\0';
 
-    //     if (lineLen + wordLen + (lineLen > 0 ? 1 : 0) > MAX_WIDTH) {
-    //         while (lineLen < MAX_WIDTH) lineBuffer[lineLen++] = ' ';
-    //         lineBuffer[lineLen] = '\0';
+    while (*msgPtr != '\0') {
+        if (*msgPtr == ' ' && lineLen == 0) {
+            msgPtr++;
+            continue;
+        }
 
-    //         gotoxy(startCol, startRow++);
-    //         cputc(CH_VLINE);
-    //         cputs(lineBuffer);
-    //         cputc(CH_VLINE);
+        if ((*msgPtr == ' ' && lineLen < MAX_WIDTH) || lineLen == MAX_WIDTH) {
+            gotoxy(startCol, startRow++);
+            cputc(CH_VLINE);
+            cputs(lineBuffer);
+            cputc(CH_VLINE);
+            memset(lineBuffer, ' ', MAX_WIDTH);
+            lineLen = 0;
+            while (*msgPtr == ' ') msgPtr++;
+            continue;
+        }
 
-    //         lineLen = 0;
-    //     }
+        lineBuffer[lineLen++] = *msgPtr++;
+    }
 
-    //     if (lineLen > 0 && (lineLen + wordLen) < MAX_WIDTH) {
-    //         lineBuffer[lineLen++] = ' ';
-    //     }
+    if (lineLen > 0) {
+        gotoxy(startCol, startRow++);
+        cputc(CH_VLINE);
+        cputs(lineBuffer);
+        cputc(CH_VLINE);
+    }
 
-    //     strncpy(lineBuffer + lineLen, msgPtr, wordLen);
-    //     lineLen += wordLen;
-
-    //     msgPtr = wordPtr;
-    //     while (*msgPtr == ' ') msgPtr++;
-    // }
-
-    // if (lineLen > 0) {
-    //     while (lineLen < MAX_WIDTH) lineBuffer[lineLen++] = ' ';
-    //     lineBuffer[lineLen] = '\0';
-
-    //     gotoxy(startCol, startRow++);
-    //     cputc(CH_VLINE);
-    //     cputs(lineBuffer);
-    //     cputc(CH_VLINE);
-    // }
-
-    // gotoxy(startCol, startRow);
-    // cputc(CH_LLCORNER);
-    // for (i = 0; i < MAX_WIDTH; i++) cputc(CH_HLINE);
-    // cputc(CH_LRCORNER);
+    gotoxy(startCol, startRow);
+    cputc(CH_LLCORNER);
+    for (i = 0; i < MAX_WIDTH; i++) cputc(CH_HLINE);
+    cputc(CH_LRCORNER);
 }

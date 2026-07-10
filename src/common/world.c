@@ -42,19 +42,53 @@ void get_world_state(void)
 /* Fetch up to 512 bytes for all connected clients */
 void get_world_clients(void)
 {
-    // memset(clients_buffer, 0, 512);
-    // create_command("x-who");
-    // send_command();
-    // read_response_min((uint8_t *)clients_buffer, 1, 512);
+    int n;
+    uint16_t bytes_to_copy;
+    uint8_t max_visible;
+
+    memset(clients_buffer, ' ', sizeof(clients_buffer));
+    clients_buffer_count = 0;
+
+    create_command("x-who");
+    send_command();
+    n = read_response_prefix((uint8_t *)clients_buffer, sizeof(clients_buffer));
+    if (n <= 0) {
+        return;
+    }
+
+    max_visible = num_clients;
+    if (max_visible > CLIENT_ROWS_MAX) {
+        max_visible = CLIENT_ROWS_MAX;
+    }
+
+    bytes_to_copy = (uint16_t)n;
+    if (bytes_to_copy > (uint16_t)(max_visible * CLIENT_NAME_WIDTH)) {
+        bytes_to_copy = (uint16_t)(max_visible * CLIENT_NAME_WIDTH);
+    }
+
+    clients_buffer_count = (uint8_t)(bytes_to_copy / CLIENT_NAME_WIDTH);
 }
 
 void get_broadcast(void)
 {
-    // int n;
-    // create_command("x-msg");
-    // send_command();
-    // n = read_response_min((uint8_t *)broadcast_message, 1, 119);
-    // broadcast_message[n] = '\0';
+    int n;
+    uint8_t copy_len;
+
+    broadcast_message[0] = '\0';
+    create_command("x-msg");
+    send_command();
+    n = read_response_min(app_data, 1, APP_PAYLOAD_SIZE);
+    if (n <= 0) {
+        return;
+    }
+
+    copy_len = (uint8_t)n;
+    if (copy_len > BROADCAST_MAX_LEN) {
+        copy_len = BROADCAST_MAX_LEN;
+    }
+
+    memcpy(broadcast_message, app_payload, copy_len);
+    broadcast_message[copy_len] = '\0';
 }
 
 /* Process any pending server commands for this client */
@@ -62,6 +96,8 @@ void get_world_cmd(void)
 {
     int  n;
     uint8_t i, cmd;
+    bool fetch_broadcast = false;
+    bool broadcast_enabled = false;
 
     create_command("x-cmd-get");
     append_command(client_str);
@@ -76,12 +112,17 @@ void get_world_cmd(void)
                 case 2: is_darkmode = false;          set_screen_colours();  break;
                 case 3: is_showing_clients = true;                           break;
                 case 4: is_showing_clients = false;                          break;
-                case 5: get_broadcast(); is_showing_broadcast = true;        break;
-                case 6: get_broadcast(); is_showing_broadcast = false;       break;
+                case 5: fetch_broadcast = true; broadcast_enabled = true;    break;
+                case 6: fetch_broadcast = true; broadcast_enabled = false;   break;
                 case 7: is_showing_info = false;      toggle_info();         break;
                 case 8: is_showing_info = true;       toggle_info();         break;
                 default: break;
             }
+        }
+
+        if (fetch_broadcast) {
+            get_broadcast();
+            is_showing_broadcast = broadcast_enabled;
         }
     }
 }

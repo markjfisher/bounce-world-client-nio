@@ -16,8 +16,9 @@ uint32_t    write_offset       = 0;
 char    server_url[80];
 uint8_t app_data[APP_DATA_SIZE];
 uint8_t shapes_buffer[SHAPES_BUFFER_SIZE];
-// char    clients_buffer[512];
-// char    broadcast_message[120];
+char    clients_buffer[CLIENT_ROWS_MAX * CLIENT_NAME_WIDTH];
+uint8_t clients_buffer_count;
+char    broadcast_message[BROADCAST_MAX_LEN + 1];
 uint8_t cmd_tmp[64];
 char    name[9];
 char    client_data_cmd[10];
@@ -27,8 +28,7 @@ char    client_data_cmd[10];
 uint8_t name_pad;
 uint8_t client_data_cmd_len;
 
-/* Shape records - 50 * 5 bytes = 250 bytes. Although there are only 19
- * shape_data pointers into shapes_buffer above. */
+/* Embedded shape records. */
 ShapeRecord shapes[19];
 uint8_t shape_count;
 

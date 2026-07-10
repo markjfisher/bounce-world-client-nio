@@ -10,7 +10,7 @@ This client uses the newer `fujinet-nio` stack rather than the older `fujinet-li
 
 ## What it does
 
-The client connects to a running Bouncy World server over TCP, downloads the available shape data, registers itself as a world client, and then renders the live world state while allowing interactive commands from the keyboard.
+The client connects to a running Bouncy World server over TCP, uses embedded shape data, registers itself as a world client, and then renders the live world state while allowing interactive commands from the keyboard.
 
 Current build targets are:
 
@@ -98,7 +98,7 @@ make clean linux
 FN_PORT=/path/to/pts-port ./build/bwcn.linux
 ```
 
-At startup the client prompts for:
+At startup the client prompts for, and saves via FujiNet NIO app-store:
 
 - the Bouncy World server address
 - your player/client name
