@@ -4,13 +4,14 @@
 #   export FUJINET_NIO_LIB=/path/to/fujinet-nio-lib
 #   make           - Build all targets
 #   make atari     - Build for Atari
+#   make disk-msdos - Build an MS-DOS FAT image
 #
-# Other targets: bbc, linux, msdos
+# Other targets: bbc, linux, msdos, disk-bbc
 
 TARGETS = atari bbc linux msdos
 PROGRAM := bwcn
 
-.PHONY: all clean $(TARGETS) disk
+.PHONY: all clean $(TARGETS) disk disk-%
 
 all:
 	@for target in $(TARGETS); do \
@@ -33,3 +34,6 @@ clean:
 
 disk:
 	$(MAKE) --no-print-directory -f makefiles/build.mk CURRENT_TARGET=bbc PROGRAM=$(PROGRAM) $(MAKECMDGOALS)
+
+disk-%:
+	$(MAKE) --no-print-directory -f makefiles/build.mk CURRENT_TARGET=$* PROGRAM=$(PROGRAM) disk
