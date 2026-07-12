@@ -31,7 +31,7 @@ You will need:
 - The `bbc` target fork of cc65 from https://github.com/markjfisher/cc65 to compile for the BBC
 
 The Linux client links against the direct NIO build of `fujinet-nio-lib`. The
-default MS-DOS build links against the `msdos-ioctl` backend, so it talks to the
+default MS-DOS build links against the `msdos-f5` backend, so it talks to the
 resident NIO build of `FUJINET.SYS` instead of taking ownership of COM1.
 
 ## Building
@@ -133,10 +133,9 @@ The resulting executable is:
 build/bwcn.msdos.exe
 ```
 
-The default MS-DOS backend is `ioctl`, which requires the NIO `FUJINET.SYS`
-block driver to be loaded from `CONFIG.SYS`. This is the correct mode when the
-application is loaded from a FujiNet-hosted DOS drive because the driver remains
-the single owner of COM1.
+The default MS-DOS backend is `f5`, which requires the NIO `FUJINET.SYS` block
+driver to be loaded from `CONFIG.SYS`. This uses the resident driver's `INT F5`
+entry point, so the driver remains the single owner of COM1.
 
 For direct serial testing without `FUJINET.SYS`, build with:
 
@@ -149,10 +148,10 @@ make msdos MSDOS_NIO_BACKEND=serial
 The serial backend uses COM1 at 115200 baud unless `fujinet-nio-lib` is rebuilt
 with different `FN_MSDOS_COM` / `FN_MSDOS_BAUD_DIVISOR` flags.
 
-To test the resident-driver `INT F5` path instead of DOS IOCTL, build with:
+To test the resident-driver DOS IOCTL path instead of `INT F5`, build with:
 
 ```sh
-make msdos MSDOS_NIO_BACKEND=f5
+make msdos MSDOS_NIO_BACKEND=ioctl
 ```
 
 ## Notes on the Linux client
