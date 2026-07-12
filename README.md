@@ -149,6 +149,12 @@ make msdos MSDOS_NIO_BACKEND=serial
 The serial backend uses COM1 at 115200 baud unless `fujinet-nio-lib` is rebuilt
 with different `FN_MSDOS_COM` / `FN_MSDOS_BAUD_DIVISOR` flags.
 
+To test the resident-driver `INT F5` path instead of DOS IOCTL, build with:
+
+```sh
+make msdos MSDOS_NIO_BACKEND=f5
+```
+
 ## Notes on the Linux client
 
 - The Linux target uses the same shared gameplay/network client logic as the retro builds.
