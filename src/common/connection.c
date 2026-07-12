@@ -204,6 +204,12 @@ static int16_t read_raw(uint8_t *buf, int16_t len)
             return total;
         }
 
+        if (bytes_read == 0 && (flags & FN_READ_EOF)) {
+            err = FN_ERR_IO;
+            handle_err("read_raw eof");
+            return total;
+        }
+
         if (bytes_read == 0) {
             pause(3);
             continue;
@@ -267,6 +273,7 @@ int16_t read_response_min(uint8_t *buf, int16_t min_payload, int16_t max_payload
     int16_t  need_total   = (int16_t)(min_payload + PACKET_HEADER_SIZE);
     uint16_t packet_total = 0;
     bool     have_header  = false;
+    bool     eof_seen     = false;
 
     while (total < need_total) {
         result = fn_read(server_handle,
@@ -287,6 +294,12 @@ int16_t read_response_min(uint8_t *buf, int16_t min_payload, int16_t max_payload
             return -1;
         }
 
+        if (bytes_read == 0 && (flags & FN_READ_EOF)) {
+            err = FN_ERR_IO;
+            handle_err("read_response_min eof");
+            return -1;
+        }
+
         if (bytes_read == 0) {
             pause(3);
             continue;
@@ -296,6 +309,7 @@ int16_t read_response_min(uint8_t *buf, int16_t min_payload, int16_t max_payload
         total       += (int16_t)bytes_read;
 
         if (flags & FN_READ_EOF) {
+            eof_seen = true;
             break;
         }
 
@@ -323,6 +337,11 @@ int16_t read_response_min(uint8_t *buf, int16_t min_payload, int16_t max_payload
     }
 
     if (total < need_total) {
+        if (eof_seen) {
+            err = FN_ERR_IO;
+            handle_err("read_response_min eof");
+            return -1;
+        }
         return (int16_t)(total - PACKET_HEADER_SIZE);
     }
 
