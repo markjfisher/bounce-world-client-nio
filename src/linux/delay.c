@@ -19,6 +19,11 @@ void wait_vsync(void)
     sleep_milliseconds(16L);
 }
 
+void network_retry_pause(void)
+{
+    sleep_milliseconds(25L);
+}
+
 void pause(uint8_t count)
 {
     while (count-- > 0U) {

@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 void wait_vsync(void);
+void network_retry_pause(void);
 #ifdef __CC65__
 void __fastcall__ pause(uint8_t count);
 #else

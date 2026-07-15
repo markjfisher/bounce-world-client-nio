@@ -22,7 +22,7 @@
 
 static char endpoint_input[ENDPOINT_LEN + 1];
 
-static char *version = "3.0.1";
+static char *version = "nio-2.4.0";
 
 static char hxp = 4;
 static char txp = 3;
@@ -61,8 +61,8 @@ void show_header(void)
     cputsxy(hxp, yps + 3, "        By Mark Fisher          ");
     cputsxy(hxp, yps + 4, "                                ");
     revers(0);
-    cputsxy(hxp, yps + 5, "                Version: 0.0.0  ");
-    cputsxy(hxp + 25, yps + 5, version);
+    cputsxy(hxp, yps + 5, "            Version: 0.0.0      ");
+    cputsxy(hxp + 21, yps + 5, version);
     chlinexy(hxp - 2, yps + 7, 36);
 }
 

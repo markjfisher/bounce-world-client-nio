@@ -1,5 +1,6 @@
         .export _pause
         .export _wait_vsync
+        .export _network_retry_pause
 
         .include "atari.inc"
 
@@ -26,4 +27,11 @@
         dex
         bne     :-
         rts
+.endproc
+
+; void network_retry_pause(void)
+; Keep network polling backoff close to the existing 3-frame retry delay.
+.proc _network_retry_pause
+        lda     #$03
+        jmp     _pause
 .endproc

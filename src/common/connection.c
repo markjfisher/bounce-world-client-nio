@@ -90,7 +90,7 @@ uint8_t request_client_data(void)
             break;
         }
 
-        pause(3);
+        network_retry_pause();
     }
 
     client_data_cmd[len] = '\0';
@@ -194,7 +194,7 @@ static int16_t read_raw(uint8_t *buf, int16_t len)
                          &flags);
 
         if (result == FN_ERR_NOT_READY || result == FN_ERR_BUSY) {
-            pause(3);   /* ~50 ms delay */
+            network_retry_pause();
             continue;
         }
 
@@ -211,7 +211,7 @@ static int16_t read_raw(uint8_t *buf, int16_t len)
         }
 
         if (bytes_read == 0) {
-            pause(3);
+            network_retry_pause();
             continue;
         }
 
@@ -284,7 +284,7 @@ int16_t read_response_min(uint8_t *buf, int16_t min_payload, int16_t max_payload
                          &flags);
 
         if (result == FN_ERR_NOT_READY || result == FN_ERR_BUSY) {
-            pause(3);
+            network_retry_pause();
             continue;
         }
 
@@ -301,7 +301,7 @@ int16_t read_response_min(uint8_t *buf, int16_t min_payload, int16_t max_payload
         }
 
         if (bytes_read == 0) {
-            pause(3);
+            network_retry_pause();
             continue;
         }
 
@@ -420,19 +420,17 @@ void send_client_data(void)
 {
     char tmp[6];
 
-    /* build "x-add-client name,2,screenX,screenY" */
+    /* build "x-add-client name,2,screenX,screenY,worldX,worldY" */
     memset((char *)app_data, 0, 64);
     strcat((char *)app_data, name);
     strcat((char *)app_data, ",2,");    /* version 2 */
-#ifdef __BBC__
     itoa(REG_SCREEN_WIDTH,  tmp, 10); strcat((char *)app_data, tmp);
     strcat((char *)app_data, ",");
     itoa(REG_SCREEN_HEIGHT, tmp, 10); strcat((char *)app_data, tmp);
-#else
-    itoa(SCREEN_WIDTH,  tmp, 10); strcat((char *)app_data, tmp);
     strcat((char *)app_data, ",");
-    itoa(SCREEN_HEIGHT, tmp, 10); strcat((char *)app_data, tmp);
-#endif
+    itoa(REG_WORLD_WIDTH,   tmp, 10); strcat((char *)app_data, tmp);
+    strcat((char *)app_data, ",");
+    itoa(REG_WORLD_HEIGHT,  tmp, 10); strcat((char *)app_data, tmp);
 
     create_command("x-add-client");
     append_command((char *)app_data);

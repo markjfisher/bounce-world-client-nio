@@ -19,6 +19,11 @@ Current build targets are:
 - `linux`
 - `msdos`
 
+The client registers both its screen dimensions and its requested server-side
+world region. Linux and MS-DOS use `80x24`; Atari uses `40x24`; BBC uses its
+`39x24` drawable playfield because column 0 is reserved for MODE 7 colour
+control.
+
 ## Build prerequisites
 
 You will need:
