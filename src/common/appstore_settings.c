@@ -6,8 +6,11 @@
 #include "fujinet-nio.h"
 
 #define APPSTORE_NAMESPACE "bounce-world-client"
+#define APPSTORE_IO_SIZE 256
 
 static uint8_t last_error = FN_OK;
+static uint8_t appstore_buf[APPSTORE_IO_SIZE];
+static fn_appstore_io_t appstore_io = { appstore_buf, sizeof(appstore_buf) };
 
 bool appstore_read_setting(char *buffer, uint8_t max_len, const char *key)
 {
@@ -21,7 +24,8 @@ bool appstore_read_setting(char *buffer, uint8_t max_len, const char *key)
 
     buffer[0] = '\0';
 
-    result = fn_appstore_read(APPSTORE_NAMESPACE,
+    result = fn_appstore_read(&appstore_io,
+                              APPSTORE_NAMESPACE,
                               key,
                               0,
                               (uint8_t *)buffer,
@@ -53,7 +57,8 @@ bool appstore_write_setting(const char *buffer, const char *key)
     }
 
     len = (uint16_t)strlen(buffer);
-    result = fn_appstore_write(APPSTORE_NAMESPACE,
+    result = fn_appstore_write(&appstore_io,
+                               APPSTORE_NAMESPACE,
                                key,
                                0,
                                (const uint8_t *)buffer,
