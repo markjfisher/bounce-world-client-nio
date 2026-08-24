@@ -18,11 +18,15 @@ Current build targets are:
 - `bbc`
 - `linux`
 - `msdos`
+- `amiga`
 
 The client registers both its screen dimensions and its requested server-side
 world region. Linux and MS-DOS use `80x24`; Atari uses `40x24`; BBC uses its
 `39x24` drawable playfield because column 0 is reserved for MODE 7 colour
-control.
+control. The Amiga client registers protocol version 3 with pixel screen
+dimensions (320x256 PAL / 320x200 NTSC) while the world region stays the
+logical 40x24 grid; the server responds with 16-bit screen-pixel shape
+coordinates.
 
 ## Build prerequisites
 
@@ -157,6 +161,39 @@ To test the resident-driver DOS IOCTL path instead of `INT F5`, build with:
 
 ```sh
 make msdos MSDOS_NIO_BACKEND=ioctl
+```
+
+## Amiga target
+
+Build (requires the `m68k-amigaos` cross-toolchain on `PATH`, provided by the
+workspace `scripts/env.sh`):
+
+```sh
+export FUJINET_NIO_LIB=$HOME/dev/nio/repos/fujinet-nio-lib
+make amiga
+```
+
+Output: `build/bwcn.amiga`.
+
+The Amiga client talks to FujiNet NIO through the broker device
+(`fujinet-nio.device`), so that device must be loaded in the guest before the
+client starts. In an interactive Workbench session (`amiga-workbench`,
+profile e.g. `wb32-a1200`) copy it from the `NIO:` share and load it:
+
+```text
+Copy NIO:fujinet-nio.device DEVS:
+C:fujinet-load-resident DEVS:fujinet-nio.device fujinet-nio.device
+```
+
+Then run the client from the share or after copying to the hard drive; the
+startup prompts for server address and player name are rendered on its own
+fullscreen lowres screen. Quitting returns to the CLI.
+
+A host-side unit test covers the shared v2/v3 coordinate decoder used by this
+target:
+
+```sh
+make test-host-coords
 ```
 
 ## Notes on the Linux client

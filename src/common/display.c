@@ -14,10 +14,15 @@
 #include "hex_dump.h"
 #include "keyboard.h"
 #include "screen.h"
+#include "shape_decode.h"
 #include "shapes.h"
 #include "playfield_clr.h"
 #include "world.h"
 #include "who.h"
+
+#if BWC_CLIENT_VERSION >= 3
+#include "gfx_render.h"
+#endif
 
 #ifdef __BBC__
 #include "gfx_shapes.h"
@@ -146,10 +151,16 @@ void show_shape(uint8_t shape_id, int8_t center_x, int8_t center_y)
 
 void show_screen(void)
 {
-    uint8_t  i, shape_id;
-    int8_t   x, y;
+    uint8_t  i;
 #ifndef __BBC__
+#if BWC_CLIENT_VERSION < 3
+    uint8_t  shape_id;
+    int8_t   x, y;
     uint16_t index            = 3;
+#endif
+#else
+    uint8_t  shape_id;
+    int8_t   x, y;
 #endif
     uint8_t  number_of_shapes = app_payload[2];
 #ifdef __BBC__
@@ -184,12 +195,29 @@ void show_screen(void)
         gfx_show_shape(shape_id, x, y, max_row);
     }
 #else
+#if BWC_CLIENT_VERSION >= 3
+    {
+        ShapePos decoded[SHAPE_POS_MAX];
+        uint8_t  ndecoded;
+
+        /* Version is selected at build time (BWC_CLIENT_VERSION); the
+         * runtime flag only carries it into the registration string. */
+        ndecoded = bwc_decode_shapes(&app_payload[3],
+                                     (uint16_t)(APP_PAYLOAD_SIZE - 3),
+                                     number_of_shapes, bwc_client_version,
+                                     decoded, SHAPE_POS_MAX);
+        for (i = 0; i < ndecoded; ++i) {
+            gfx_show_shape_px(decoded[i].shape_id, decoded[i].x, decoded[i].y);
+        }
+    }
+#else
     for (i = 0; i < number_of_shapes; ++i) {
         shape_id = app_payload[index++];
         x        = (int8_t)app_payload[index++];
         y        = (int8_t)app_payload[index++];
         show_shape(shape_id, x, y);
     }
+#endif
 #endif
 
     if (is_showing_clients) {

@@ -6,12 +6,12 @@
 #   make atari     - Build for Atari
 #   make disk-msdos - Build an MS-DOS FAT image
 #
-# Other targets: bbc, linux, msdos, disk-bbc
+# Other targets: bbc, linux, msdos, amiga, disk-bbc
 
-TARGETS = atari bbc linux msdos
+TARGETS = atari bbc linux msdos amiga
 PROGRAM := bwcn
 
-.PHONY: all clean $(TARGETS) disk disk-%
+.PHONY: all clean $(TARGETS) disk disk-% test-host-coords
 
 all:
 	@for target in $(TARGETS); do \
@@ -37,3 +37,10 @@ disk:
 
 disk-%:
 	$(MAKE) --no-print-directory -f makefiles/build.mk CURRENT_TARGET=$* PROGRAM=$(PROGRAM) disk
+
+test-host-coords:
+	@mkdir -p build
+	gcc -Wall -Wextra -O2 -std=c99 -Isrc/include \
+	  src/common/shape_decode.c tests/host/test_coord_decode.c \
+	  -o build/test_coord_decode.host
+	build/test_coord_decode.host

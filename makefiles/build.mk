@@ -14,11 +14,12 @@ CURRENT_PLATFORM_atari := atari
 CURRENT_PLATFORM_bbc   := bbc
 CURRENT_PLATFORM_linux := linux
 CURRENT_PLATFORM_msdos := msdos
+CURRENT_PLATFORM_amiga := amiga
 
 CURRENT_PLATFORM = $(CURRENT_PLATFORM_$(CURRENT_TARGET))
 
 ifeq ($(CURRENT_PLATFORM),)
-$(error Unknown target: $(CURRENT_TARGET). Supported: atari bbc linux msdos)
+$(error Unknown target: $(CURRENT_TARGET). Supported: atari bbc linux msdos amiga)
 endif
 
 # fujinet-nio-lib base directory (required; relative to project root or absolute)
@@ -43,6 +44,10 @@ NIO_LIB_FILE_msdos-serial := $(NIO_LIB_DIR)/build/fujinet-nio-msdos-serial.lib
 NIO_LIB_FILE_msdos-ioctl  := $(NIO_LIB_DIR)/build/fujinet-nio-msdos-ioctl.lib
 NIO_LIB_FILE_msdos-f5     := $(NIO_LIB_DIR)/build/fujinet-nio-msdos-f5.lib
 NIO_LIB_FILE_msdos := $(NIO_LIB_FILE_msdos-$(MSDOS_NIO_BACKEND))
+NIO_LIB_FILE_amiga := $(NIO_LIB_DIR)/build/fujinet-nio-amiga.a
+
+# Host-side unit test artifacts
+HOST_TEST_BIN := $(BUILD_DIR)/test_coord_decode.host
 
 NIO_LIB_FILE = $(NIO_LIB_FILE_$(CURRENT_TARGET))
 
@@ -80,6 +85,7 @@ CC_atari := cl65
 CC_bbc   := cl65
 CC_linux := gcc
 CC_msdos := wcc
+CC_amiga := m68k-amigaos-gcc
 LD_msdos := wcl
 CC = $(CC_$(CURRENT_TARGET))
 LD = $(LD_$(CURRENT_TARGET))
@@ -92,6 +98,7 @@ CFLAGS_atari_common := -Osir
 CFLAGS_bbc_common   := -Osir
 CFLAGS_linux_common := -Wall -Wextra -O2 -std=c99
 CFLAGS_msdos_common := -0 -bt=dos -os -ms -s -q
+CFLAGS_amiga_common := -Wall -Wextra -O2 -std=c99 -mcpu=68000 -msoft-float -mcrt=clib2
 CFLAGS += $(CFLAGS_$(CURRENT_TARGET)_common)
 CFLAGS += -I$(SRCDIR)/include
 CFLAGS += -I$(SRCDIR)/$(CURRENT_PLATFORM)
@@ -113,6 +120,7 @@ LDFLAGS_atari := -C cfg/atari.cfg
 LDFLAGS_bbc   := -C cfg/bbc.cfg
 LDFLAGS_linux :=
 LDFLAGS_msdos := -q -0 -bt=dos -ms
+LDFLAGS_amiga := -mcpu=68000 -msoft-float -mcrt=clib2 -lamiga
 LDFLAGS = $(LDFLAGS_$(CURRENT_TARGET))
 
 LIBS  = $(NIO_LIB_FILE)
@@ -122,6 +130,7 @@ CFLAGS_atari := -DBWC_CUSTOM_CPUTC
 CFLAGS_bbc   :=
 CFLAGS_linux :=
 CFLAGS_msdos :=
+CFLAGS_amiga := -D__AMIGA__ -DBWC_CLIENT_VERSION=3
 ifeq ($(CURRENT_TARGET),msdos)
 ifneq ($(filter $(MSDOS_NIO_BACKEND),ioctl f5),)
 CFLAGS_msdos += -DBWC_MSDOS_IOCTL_DIAG
@@ -163,6 +172,10 @@ ifeq ($(CURRENT_TARGET),linux)
 $(OBJDIR)/$(CURRENT_TARGET)/%.o: $(SRCDIR)/%.c | $(OBJDIR)
 	@mkdir -p $(dir $@)
 	$(CC) -c $(CFLAGS) -MMD -MF $(@:.o=.d) -o $@ $<
+else ifeq ($(CURRENT_TARGET),amiga)
+$(OBJDIR)/$(CURRENT_TARGET)/%.o: $(SRCDIR)/%.c | $(OBJDIR)
+	@mkdir -p $(dir $@)
+	$(CC) -c $(CFLAGS) -MMD -MF $(@:.o=.d) -o $@ $<
 else ifeq ($(CURRENT_TARGET),msdos)
 $(OBJDIR)/$(CURRENT_TARGET)/%.o: $(SRCDIR)/%.c | $(OBJDIR)
 	@mkdir -p $(dir $@)
@@ -188,7 +201,7 @@ else
 endif
 
 # Link
-ifeq ($(CURRENT_TARGET),linux)
+ifeq ($(CURRENT_TARGET),$(filter $(CURRENT_TARGET),linux amiga))
 $(BUILD_DIR)/$(PROGRAM_TGT): $(OBJECTS) $(NIO_LIB_FILE) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJECTS) $(LIBS)
 else ifeq ($(CURRENT_TARGET),msdos)

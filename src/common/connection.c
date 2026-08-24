@@ -27,6 +27,7 @@
 #include "data.h"
 #include "delay.h"
 #include "screen.h"
+#include "shape_decode.h"
 #include "world.h"
 
 /* -----------------------------------------------------------------------
@@ -420,10 +421,12 @@ void send_client_data(void)
 {
     char tmp[6];
 
-    /* build "x-add-client name,2,screenX,screenY,worldX,worldY" */
+    /* build "x-add-client name,<version>,screenX,screenY,worldX,worldY" */
     memset((char *)app_data, 0, 64);
     strcat((char *)app_data, name);
-    strcat((char *)app_data, ",2,");    /* version 2 */
+    strcat((char *)app_data, ",");
+    itoa(bwc_client_version, tmp, 10); strcat((char *)app_data, tmp);
+    strcat((char *)app_data, ",");
     itoa(REG_SCREEN_WIDTH,  tmp, 10); strcat((char *)app_data, tmp);
     strcat((char *)app_data, ",");
     itoa(REG_SCREEN_HEIGHT, tmp, 10); strcat((char *)app_data, tmp);
