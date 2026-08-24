@@ -22,7 +22,7 @@
 
 static char endpoint_input[ENDPOINT_LEN + 1];
 
-static char *version = "nio-2.4.0";
+static char *version = "nio-3.0.0";
 
 static char hxp = 4;
 static char txp = 3;

@@ -13,6 +13,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "screen.h"
 #include "conio.h"
@@ -33,24 +34,76 @@ static uint8_t cur_revers;
 static uint8_t cur_cursor_visible;
 static uint8_t screen_ready;
 
+/* Shadow copy of the text grid so the cursor block can be erased without
+ * reading back the rastport. */
+static uint8_t cell_ch[SCREEN_WIDTH * SCREEN_HEIGHT];
+static uint8_t cell_rev[SCREEN_WIDTH * SCREEN_HEIGHT];
+static uint8_t cursor_on_screen;
+static uint8_t cursor_cell_x, cursor_cell_y;
+static uint8_t cursor_saved_ch, cursor_saved_rev;
+
+static void render_cell(uint8_t cx, uint8_t cy, uint8_t ch, uint8_t rev)
+{
+    struct RastPort *rp = amiga_conio_draw_rp();
+
+    if (!rp) {
+        return;
+    }
+    /* Paint the full cell box explicitly, then the glyph on top. Avoids
+     * JAM2/BPen background semantics, which proved unreliable here and left
+     * cursor blocks un-erased. */
+    SetAPen(rp, rev ? 1 : 0);
+    RectFill(rp,
+             (LONG)(cx * 8), (LONG)(cy * 8),
+             (LONG)(cx * 8 + 7), (LONG)(cy * 8 + 7));
+    if (ch != ' ') {
+        SetAPen(rp, rev ? 0 : 1);
+        SetDrMd(rp, JAM1);
+        /* Baseline at row 6 of the 8px cell: ascenders and descenders both
+         * stay inside the RectFill'd box (topaz descends 1px below
+         * baseline). */
+        Move(rp, (LONG)(cx * 8), (LONG)(cy * 8 + 6));
+        Text(rp, (CONST_STRPTR)&ch, 1);
+    }
+}
+
+static void cursor_erase(void)
+{
+    if (!cursor_on_screen) {
+        return;
+    }
+    render_cell(cursor_cell_x, cursor_cell_y, cursor_saved_ch, cursor_saved_rev);
+    cursor_on_screen = 0;
+}
+
+static void cursor_draw(void)
+{
+    struct RastPort *rp;
+
+    if (!cur_cursor_visible || !screen_ready || cursor_on_screen) {
+        return;
+    }
+    rp = amiga_conio_draw_rp();
+    if (!rp) {
+        return;
+    }
+    cursor_cell_x = cur_x % SCREEN_WIDTH;
+    cursor_cell_y = cur_y % SCREEN_HEIGHT;
+    cursor_saved_ch = cell_ch[cursor_cell_y * SCREEN_WIDTH + cursor_cell_x];
+    cursor_saved_rev = cell_rev[cursor_cell_y * SCREEN_WIDTH + cursor_cell_x];
+    SetAPen(rp, 1);
+    RectFill(rp,
+             (LONG)(cursor_cell_x * 8), (LONG)(cursor_cell_y * 8),
+             (LONG)(cursor_cell_x * 8 + 7), (LONG)(cursor_cell_y * 8 + 7));
+    cursor_on_screen = 1;
+}
+
 void *amiga_conio_draw_rp(void)
 {
     if (!screen_ready) {
         return NULL;
     }
     return &brp[cur_buf];
-}
-
-static void set_text_pens(struct RastPort *rp)
-{
-    if (cur_revers) {
-        SetAPen(rp, 0);
-        SetBPen(rp, 1);
-    } else {
-        SetAPen(rp, 1);
-        SetBPen(rp, 0);
-    }
-    SetDrMd(rp, JAM2);
 }
 
 void amiga_conio_clear(void)
@@ -60,26 +113,24 @@ void amiga_conio_clear(void)
     if (!rp) {
         return;
     }
+    cursor_erase();
     SetAPen(rp, 0);
     RectFill(rp, 0, 0, SCREEN_PIXEL_WIDTH - 1, screen_h_px - 1);
+    memset(cell_ch, ' ', sizeof(cell_ch));
+    memset(cell_rev, 0, sizeof(cell_rev));
     cur_x = 0;
     cur_y = 0;
 }
 
 static void draw_char(char c)
 {
-    struct RastPort *rp = amiga_conio_draw_rp();
-
-    if (!rp) {
-        return;
-    }
     if (c == '\n') {
         cur_x = 0;
         cur_y++;
     } else {
-        set_text_pens(rp);
-        Move(rp, (LONG)(cur_x * 8), (LONG)(cur_y * 8 + 7));
-        Text(rp, (CONST_STRPTR)&c, 1);
+        render_cell(cur_x, cur_y, (uint8_t)c, cur_revers);
+        cell_ch[cur_y * SCREEN_WIDTH + cur_x] = (uint8_t)c;
+        cell_rev[cur_y * SCREEN_WIDTH + cur_x] = cur_revers;
         cur_x++;
     }
     if (cur_x >= SCREEN_WIDTH) {
@@ -116,13 +167,15 @@ void clrscr(void)
 
 void gotoxy(uint8_t x, uint8_t y)
 {
+    cursor_erase();
     cur_x = x;
     cur_y = y;
+    cursor_draw();
 }
 
 void gotox(uint8_t x)
 {
-    cur_x = x;
+    gotoxy(x, cur_y);
 }
 
 uint8_t wherex(void)
@@ -137,14 +190,18 @@ uint8_t wherey(void)
 
 void cputc(char c)
 {
+    cursor_erase();
     draw_char(c);
+    cursor_draw();
 }
 
 void cputs(const char *s)
 {
+    cursor_erase();
     while (*s) {
         draw_char(*s++);
     }
+    cursor_draw();
 }
 
 void cputcxy(uint8_t x, uint8_t y, char c)
@@ -161,12 +218,28 @@ void cputsxy(uint8_t x, uint8_t y, const char *s)
 
 void revers(uint8_t on)
 {
-    cur_revers = on ? 1U : 0U;
+    uint8_t new_revers = on ? 1U : 0U;
+
+    if (new_revers != cur_revers) {
+        cursor_erase();
+        cur_revers = new_revers;
+        cursor_draw();
+    }
 }
 
 void cursor(uint8_t on)
 {
-    cur_cursor_visible = on ? 1U : 0U;
+    uint8_t new_visible = on ? 1U : 0U;
+
+    if (new_visible != cur_cursor_visible) {
+        if (!new_visible) {
+            cursor_erase();
+        }
+        cur_cursor_visible = new_visible;
+        if (new_visible) {
+            cursor_draw();
+        }
+    }
 }
 
 void chlinexy(uint8_t x, uint8_t y, uint8_t len)
@@ -184,6 +257,7 @@ static char rawkey_to_ascii(uint16_t code, uint16_t qualifier)
     static const char *row_q = "qwertyuiop";
     static const char *row_a = "asdfghjkl";
     static const char *row_z = "zxcvbnm";
+    uint8_t shift = (qualifier & (IEQUALIFIER_LSHIFT | IEQUALIFIER_RSHIFT)) ? 1U : 0U;
     char c = '\0';
 
     /* Ignore key-release events (IECODE_UP_PREFIX set) */
@@ -192,33 +266,34 @@ static char rawkey_to_ascii(uint16_t code, uint16_t qualifier)
     }
 
     if (code <= 0x3F) {
-        if (code >= 0x01 && code <= 0x0A) {
+        if (code >= 0x01 && code <= 0x0A && !shift) {
             c = "1234567890"[code - 0x01];
         } else if (code >= 0x10 && code <= 0x19) {
             c = row_q[code - 0x10];
         } else if (code >= 0x20 && code <= 0x28) {
             c = row_a[code - 0x20];
-        } else if (code >= 0x30 && code <= 0x36) {
-            c = row_z[code - 0x30];
+        } else if (code >= 0x31 && code <= 0x37) {
+            /* Bottom row starts at 0x31: 0x30 is the international key */
+            c = row_z[code - 0x31];
         } else {
             switch (code) {
-                case 0x00: c = '`'; break;
-                case 0x0B: c = '-'; break;
-                case 0x0C: c = '='; break;
-                case 0x0D: c = '\\'; break;
-                case 0x3B: c = ','; break;
-                case 0x3C: c = '.'; break;
-                case 0x3D: c = '/'; break;
-                case 0x3E: c = '+'; break;
-                case 0x3A: c = '-'; break;
+                case 0x00: c = shift ? '~' : '`'; break;
+                case 0x0B: c = shift ? '_' : '-'; break;
+                case 0x0C: c = shift ? '+' : '='; break;
+                case 0x0D: c = shift ? '|' : '\\'; break;
+                case 0x1A: c = shift ? '{' : '['; break;
+                case 0x1B: c = shift ? '}' : ']'; break;
+                case 0x29: c = shift ? ':' : ';'; break;
+                case 0x2A: c = shift ? '"' : '\''; break;
+                case 0x38: c = shift ? '<' : ','; break;
+                case 0x39: c = shift ? '>' : '.'; break;
+                case 0x3A: c = shift ? '?' : '/'; break;
                 default: break;
             }
         }
 
-        if (c != '\0' && (qualifier & (IEQUALIFIER_LSHIFT | IEQUALIFIER_RSHIFT))) {
-            if (c >= 'a' && c <= 'z') {
-                c = (char)(c - 'a' + 'A');
-            }
+        if (c != '\0' && shift && c >= 'a' && c <= 'z') {
+            c = (char)(c - 'a' + 'A');
         }
     } else {
         switch (code) {
