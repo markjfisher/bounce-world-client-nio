@@ -216,7 +216,15 @@ static int16_t read_raw(uint8_t *buf, int16_t len)
             continue;
         }
 
+        /* The device may eagerly answer with more than the requested
+         * length (get-minimum semantics: the surplus stays queued for the
+         * next read). The stream position advances by what was actually
+         * served, but this caller's buffer only received what it asked
+         * for — never walk it past its end. */
         read_offset += (uint32_t)bytes_read;
+        if (bytes_read > (uint16_t)(len - total)) {
+            bytes_read = (uint16_t)(len - total);
+        }
         total       += (int16_t)bytes_read;
 
         if (flags & FN_READ_EOF) {
@@ -306,7 +314,12 @@ int16_t read_response_min(uint8_t *buf, int16_t min_payload, int16_t max_payload
             continue;
         }
 
+        /* Same eager-over-return guard as read_raw: the stream advances by
+         * what was served, the caller's buffer only by what it asked for. */
         read_offset += (uint32_t)bytes_read;
+        if (bytes_read > (uint16_t)(max_total - total)) {
+            bytes_read = (uint16_t)(max_total - total);
+        }
         total       += (int16_t)bytes_read;
 
         if (flags & FN_READ_EOF) {

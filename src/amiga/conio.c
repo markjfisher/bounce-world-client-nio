@@ -529,11 +529,5 @@ __attribute__((constructor)) static void amiga_screen_open(void)
     }
 
     screen_ready = 1;
-    /* Single-buffer presentation: ChangeScreenBuffer() reports success but
-     * never displays the alternate buffer in the current test environment,
-     * so frames are drawn straight into the visible bitmap. Redraws happen
-     * only on server step changes, keeping visible disruption minimal.
-     * Proper double-buffering is deferred to the vector-fidelity story. */
-    swap_disabled = 1;
     atexit(close_all);
 }
