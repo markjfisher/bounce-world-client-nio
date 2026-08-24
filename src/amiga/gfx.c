@@ -3,6 +3,7 @@
 #include "screen.h"
 #include "conio.h"
 #include "gfx_render.h"
+
 #include "shapes.h"
 
 void gfx_show_shape_px(uint8_t shape_id, int16_t center_x, int16_t center_y)
@@ -22,7 +23,8 @@ void gfx_show_shape_px(uint8_t shape_id, int16_t center_x, int16_t center_y)
     width = shapes[shape_id].shape_width;
 
     /* Shapes are proportional to the logical 40x24 world grid; scale the
-     * world-unit footprint into registered screen pixels. */
+     * world-unit footprint into registered screen pixels. Pen 1: the
+     * custom-screen palette is not customized yet (story 2 owns colour). */
     half_w = ((int32_t)width * SCREEN_PIXEL_WIDTH / REG_WORLD_WIDTH) / 2;
     half_h = ((int32_t)width * SCREEN_PIXEL_HEIGHT / REG_WORLD_HEIGHT) / 2;
 
@@ -43,10 +45,7 @@ void gfx_show_shape_px(uint8_t shape_id, int16_t center_x, int16_t center_y)
     if (y1 >= (int32_t)amiga_conio_height()) {
         y1 = (int32_t)amiga_conio_height() - 1;
     }
-    if (x1 < x0 || y1 < y0) {
-        return;
-    }
 
-    SetAPen(rp, 2);
+    SetAPen(rp, 1);
     RectFill(rp, (LONG)x0, (LONG)y0, (LONG)x1, (LONG)y1);
 }

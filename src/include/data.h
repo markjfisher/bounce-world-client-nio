@@ -9,7 +9,11 @@
 /* WARNING: if these change, need to update data.s too */
 #define SHAPES_BUFFER_SIZE 160
 /* enough for the live world packet; larger auxiliary responses can be drained */
+/* App packet buffer. Targets with larger exchange buffers (and worlds with
+ * many bodies) may override at build time; the wire size field is 16-bit. */
+#ifndef APP_DATA_SIZE
 #define APP_DATA_SIZE      256
+#endif
 #define PACKET_HEADER_SIZE 2
 #define APP_PAYLOAD_SIZE   (APP_DATA_SIZE - PACKET_HEADER_SIZE)
 #define CLIENT_ROWS_MAX    20

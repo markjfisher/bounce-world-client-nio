@@ -34,9 +34,29 @@ int16_t fetch_client_state(void)
 
 void get_world_state(void)
 {
+    uint8_t ws[14];
+
     create_command("x-ws");
     send_command();
-    read_response_wait((uint8_t *)&world_width, 14);
+    read_response_wait(ws, 14);
+
+    /* Decode explicitly: the world-state globals must NOT be assumed
+     * contiguous in memory. The previous raw 14-byte write into
+     * &world_width relied on the compiler laying the block out without
+     * gaps, which held on cc65 but not on m68k-amigaos-gcc, where the
+     * spill zeroed shape_count. All targets are little-endian, so the
+     * explicit LE decode is behaviour-preserving. */
+    world_width      = (uint16_t)(ws[0] | ((uint16_t)ws[1] << 8));
+    world_height     = (uint16_t)(ws[2] | ((uint16_t)ws[3] << 8));
+    body_count       = (uint16_t)(ws[4] | ((uint16_t)ws[5] << 8));
+    body_1           = ws[6];
+    body_2           = ws[7];
+    body_3           = ws[8];
+    body_4           = ws[9];
+    body_5           = ws[10];
+    num_clients      = ws[11];
+    world_is_frozen  = ws[12];
+    world_is_wrapped = ws[13];
 }
 
 /* Fetch up to 512 bytes for all connected clients */

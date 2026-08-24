@@ -22,6 +22,11 @@
 struct GfxBase *GfxBase = NULL;
 struct IntuitionBase *IntuitionBase = NULL;
 
+/* The Shell's default stack is far too small once show_screen() puts its
+ * decode buffer and the render chain on it — the overflow trampled BSS
+ * (shape_count, packet buffers). Ask for a real stack at startup. */
+unsigned int __stack_size = 32768;
+
 static struct Screen *scr;
 static struct Window *win;
 static struct TextFont *font;
@@ -29,6 +34,7 @@ static struct ScreenBuffer *sbuf[2];
 static struct RastPort brp[2];
 static uint16_t screen_h_px;
 static uint8_t cur_buf;
+static uint8_t swap_disabled;
 static uint8_t cur_x, cur_y;
 static uint8_t cur_revers;
 static uint8_t cur_cursor_visible;
@@ -145,8 +151,16 @@ static void draw_char(char c)
 
 void amiga_conio_present(void)
 {
-    if (screen_ready) {
-        ChangeScreenBuffer(scr, sbuf[cur_buf]);
+    if (!screen_ready || swap_disabled) {
+        return;
+    }
+    /* If the buffer swap is rejected, fall back to single-buffer drawing:
+     * keep rendering into the visible bitmap rather than a never-shown
+     * off-screen buffer. */
+    if (!ChangeScreenBuffer(scr, sbuf[cur_buf])) {
+        swap_disabled = 1;
+        cur_buf = 0;
+        ChangeScreenBuffer(scr, sbuf[0]);
     }
 }
 
@@ -157,7 +171,9 @@ uint16_t amiga_conio_height(void)
 
 void amiga_conio_swap(void)
 {
-    cur_buf ^= 1U;
+    if (!swap_disabled) {
+        cur_buf ^= 1U;
+    }
 }
 
 void clrscr(void)
@@ -310,18 +326,58 @@ static char rawkey_to_ascii(uint16_t code, uint16_t qualifier)
     return c;
 }
 
+static int16_t pushed_key = -1; /* decoded key from kbhit peek, -1 = none */
+
 uint8_t kbhit(void)
 {
+    /* Consume messages until a mappable key-down is found (kept in
+     * pushed_key for cgetc); key-ups and unmapped keys are discarded.
+     * IDCMP messages must be answered with ReplyMsg — never re-queued. */
     if (!win) {
         return 0;
     }
-    return GetMsg(win->UserPort) != NULL ? 1U : 0U;
+    if (pushed_key >= 0) {
+        return 1;
+    }
+    for (;;) {
+        struct IntuiMessage *msg = (struct IntuiMessage *)GetMsg(win->UserPort);
+        uint16_t class_;
+        uint16_t code;
+        uint16_t qualifier;
+
+        if (!msg) {
+            return 0;
+        }
+        class_ = msg->Class;
+        code = msg->Code;
+        qualifier = msg->Qualifier;
+        ReplyMsg((struct Message *)msg);
+
+        if (class_ == IDCMP_CLOSEWINDOW) {
+            pushed_key = 'q';
+            return 1;
+        }
+        if (class_ == IDCMP_RAWKEY) {
+            char c = rawkey_to_ascii(code, qualifier);
+            if (c != '\0') {
+                pushed_key = c;
+                return 1;
+            }
+        }
+    }
 }
+
 
 char cgetc(void)
 {
     struct IntuiMessage *msg;
     char result = '\0';
+
+    if (pushed_key >= 0) {
+        result = (char)pushed_key;
+        pushed_key = -1;
+        return result;
+    }
 
     if (!win) {
         return '\0';
@@ -413,6 +469,12 @@ __attribute__((constructor)) static void amiga_screen_open(void)
         return;
     }
 
+    /* Explicit palette: don't rely on Intuition defaults for a custom
+     * screen. 0 = background gray, 1 = text black, 2 = shape red. */
+    SetRGB4(&scr->ViewPort, 0, 9, 9, 9);
+    SetRGB4(&scr->ViewPort, 1, 0, 0, 0);
+    SetRGB4(&scr->ViewPort, 2, 15, 3, 3);
+
     font = OpenFont((struct TextAttr *)&((struct TextAttr){ (STRPTR)"topaz.font", 8, FS_NORMAL, FPF_ROMFONT }));
     if (!font) {
         close_all();
@@ -421,7 +483,7 @@ __attribute__((constructor)) static void amiga_screen_open(void)
     SetFont(&scr->RastPort, font);
 
     sbuf[0] = AllocScreenBuffer(scr, NULL, SB_SCREEN_BITMAP);
-    sbuf[1] = AllocScreenBuffer(scr, NULL, SB_SCREEN_BITMAP);
+    sbuf[1] = AllocScreenBuffer(scr, NULL, 0);
     if (!sbuf[0] || !sbuf[1]) {
         close_all();
         return;
@@ -455,5 +517,11 @@ __attribute__((constructor)) static void amiga_screen_open(void)
     }
 
     screen_ready = 1;
+    /* Single-buffer presentation: ChangeScreenBuffer() reports success but
+     * never displays the alternate buffer in the current test environment,
+     * so frames are drawn straight into the visible bitmap. Redraws happen
+     * only on server step changes, keeping visible disruption minimal.
+     * Proper double-buffering is deferred to the vector-fidelity story. */
+    swap_disabled = 1;
     atexit(close_all);
 }
