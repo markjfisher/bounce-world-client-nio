@@ -3,7 +3,6 @@
 #include "screen.h"
 #include "conio.h"
 #include "gfx_render.h"
-
 #include "shapes.h"
 
 void gfx_show_shape_px(uint8_t shape_id, int16_t center_x, int16_t center_y)
@@ -21,6 +20,9 @@ void gfx_show_shape_px(uint8_t shape_id, int16_t center_x, int16_t center_y)
     }
 
     width = shapes[shape_id].shape_width;
+    if (width == 0) {
+        return;
+    }
 
     /* Shapes are proportional to the logical 40x24 world grid; scale the
      * world-unit footprint into registered screen pixels. Pen 1: the
@@ -33,6 +35,10 @@ void gfx_show_shape_px(uint8_t shape_id, int16_t center_x, int16_t center_y)
     x1 = (int32_t)center_x + half_w - 1;
     y1 = (int32_t)center_y + half_h - 1;
 
+    /* Bodies can transiently sit outside the registered screen while
+     * wrapping. Clamp to the bitmap and drop rects that clamp away
+     * entirely — a reversed RectFill (x0 > x1 or y0 > y1) is undefined
+     * behaviour and crashed the guest. */
     if (x0 < 0) {
         x0 = 0;
     }
@@ -44,6 +50,9 @@ void gfx_show_shape_px(uint8_t shape_id, int16_t center_x, int16_t center_y)
     }
     if (y1 >= (int32_t)amiga_conio_height()) {
         y1 = (int32_t)amiga_conio_height() - 1;
+    }
+    if (x1 < x0 || y1 < y0) {
+        return;
     }
 
     SetAPen(rp, 1);

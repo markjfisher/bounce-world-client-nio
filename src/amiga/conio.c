@@ -25,7 +25,7 @@ struct IntuitionBase *IntuitionBase = NULL;
 /* The Shell's default stack is far too small once show_screen() puts its
  * decode buffer and the render chain on it — the overflow trampled BSS
  * (shape_count, packet buffers). Ask for a real stack at startup. */
-unsigned int __stack_size = 32768;
+unsigned int __stack_size = 65536;
 
 static struct Screen *scr;
 static struct Window *win;
@@ -50,8 +50,14 @@ static uint8_t cursor_saved_ch, cursor_saved_rev;
 
 static void render_cell(uint8_t cx, uint8_t cy, uint8_t ch, uint8_t rev)
 {
-    struct RastPort *rp = amiga_conio_draw_rp();
+    struct RastPort *rp;
 
+    /* Guard: out-of-grid positions (e.g. get_line editing past column 39)
+     * must never reach the shadow arrays or the raster. */
+    if (cx >= SCREEN_WIDTH || cy >= SCREEN_HEIGHT) {
+        return;
+    }
+    rp = amiga_conio_draw_rp();
     if (!rp) {
         return;
     }
@@ -87,6 +93,9 @@ static void cursor_draw(void)
     struct RastPort *rp;
 
     if (!cur_cursor_visible || !screen_ready || cursor_on_screen) {
+        return;
+    }
+    if (cur_x >= SCREEN_WIDTH || cur_y >= SCREEN_HEIGHT) {
         return;
     }
     rp = amiga_conio_draw_rp();
@@ -130,6 +139,9 @@ void amiga_conio_clear(void)
 
 static void draw_char(char c)
 {
+    if (cur_x >= SCREEN_WIDTH || cur_y >= SCREEN_HEIGHT) {
+        return;
+    }
     if (c == '\n') {
         cur_x = 0;
         cur_y++;
