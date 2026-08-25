@@ -96,6 +96,15 @@ void handle_kb(void)
         case 'l': flash_on_collision = !flash_on_collision; break;
 #endif
 
+#if defined(__AMIGA__)
+        case 'V':
+        case 'v':
+            bwc_render_mode = (bwc_render_mode == RENDER_VECTOR)
+                                  ? RENDER_BLOCK
+                                  : RENDER_VECTOR;
+            break;
+#endif
+
         default: break;
     }
 }

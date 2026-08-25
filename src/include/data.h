@@ -61,6 +61,13 @@ extern bool is_running_sim;
 extern bool is_showing_info;
 extern bool is_showing_clients;
 extern bool is_showing_broadcast;
+
+/* Renderer selection for graphical targets (Amiga); other targets ignore it */
+enum render_mode {
+    RENDER_VECTOR,
+    RENDER_BLOCK
+};
+extern enum render_mode bwc_render_mode;
 extern bool flash_on_collision;
 extern bool play_sound_on_collision;
 

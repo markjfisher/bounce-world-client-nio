@@ -60,5 +60,6 @@ bool    is_darkmode             = true;
 bool    is_showing_info         = false;
 bool    is_showing_clients      = false;
 bool    is_showing_broadcast    = false;
+enum render_mode bwc_render_mode = RENDER_VECTOR;
 bool    flash_on_collision      = false;
 bool    play_sound_on_collision = false;

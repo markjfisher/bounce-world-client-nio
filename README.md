@@ -189,11 +189,16 @@ Then run the client from the share or after copying to the hard drive; the
 startup prompts for server address and player name are rendered on its own
 fullscreen lowres screen. Quitting returns to the CLI.
 
-A host-side unit test covers the shared v2/v3 coordinate decoder used by this
-target:
+Shapes render as filled vector silhouettes by default. Press `v` during play
+to switch the whole playfield to proportional block rectangles; press it
+again to return to vectors. The current key is listed in the on-screen
+legend (info overlay).
+
+Host-side unit tests cover the shared v2/v3 coordinate decoder and the
+vector silhouette tracer used by this target (`make test-host` runs both):
 
 ```sh
-make test-host-coords
+make test-host
 ```
 
 ## Notes on the Linux client

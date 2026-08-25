@@ -11,7 +11,7 @@
 TARGETS = atari bbc linux msdos amiga
 PROGRAM := bwcn
 
-.PHONY: all clean $(TARGETS) disk disk-% test-host-coords
+.PHONY: all clean $(TARGETS) disk disk-% test-host-coords test-host-vectors test-host
 
 all:
 	@for target in $(TARGETS); do \
@@ -44,3 +44,12 @@ test-host-coords:
 	  src/common/shape_decode.c tests/host/test_coord_decode.c \
 	  -o build/test_coord_decode.host
 	build/test_coord_decode.host
+
+test-host-vectors:
+	@mkdir -p build
+	gcc -Wall -Wextra -O2 -std=c99 -Isrc/include -Isrc/amiga \
+	  src/amiga/vector_outline.c src/common/embedded_shapes.c tests/host/test_vector_outline.c \
+	  -o build/test_vector_outline.host
+	build/test_vector_outline.host
+
+test-host: test-host-coords test-host-vectors

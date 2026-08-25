@@ -71,6 +71,10 @@ void show_info(void)
     print_reverse("I"); cputs("nf ");
     print_reverse("Q"); cputs("uit ");
 
+#ifdef __AMIGA__
+    print_reverse("V"); cputs("ec ");
+#endif
+
 #ifdef __BBC__
     print_reverse("C"); cputs("ol ");
 #endif
