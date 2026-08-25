@@ -130,7 +130,10 @@ CFLAGS_atari := -DBWC_CUSTOM_CPUTC
 CFLAGS_bbc   :=
 CFLAGS_linux :=
 CFLAGS_msdos :=
-CFLAGS_amiga := -D__AMIGA__ -DBWC_CLIENT_VERSION=3 -DAPP_DATA_SIZE=768
+# Amiga app buffer sized for a dense wide+rotation world: max world payload
+# 3 header + 240*9-byte shapes = 2163, plus the 2-byte length prefix = 2165,
+# rounded up to a round value.
+CFLAGS_amiga := -D__AMIGA__ -DAPP_DATA_SIZE=2304
 ifeq ($(CURRENT_TARGET),msdos)
 ifneq ($(filter $(MSDOS_NIO_BACKEND),ioctl f5),)
 CFLAGS_msdos += -DBWC_MSDOS_IOCTL_DIAG

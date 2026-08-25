@@ -11,7 +11,7 @@
 TARGETS = atari bbc linux msdos amiga
 PROGRAM := bwcn
 
-.PHONY: all clean $(TARGETS) disk disk-% test-host-coords test-host-vectors test-host
+.PHONY: all clean $(TARGETS) disk disk-% test-host-coords test-host-vectors test-host-csv test-host
 
 all:
 	@for target in $(TARGETS); do \
@@ -52,4 +52,11 @@ test-host-vectors:
 	  -o build/test_vector_outline.host
 	build/test_vector_outline.host
 
-test-host: test-host-coords test-host-vectors
+test-host-csv:
+	@mkdir -p build
+	gcc -Wall -Wextra -O2 -std=c99 -Isrc/include \
+	  src/common/add_client_csv.c tests/host/test_add_client_csv.c \
+	  -o build/test_add_client_csv.host
+	build/test_add_client_csv.host
+
+test-host: test-host-coords test-host-vectors test-host-csv

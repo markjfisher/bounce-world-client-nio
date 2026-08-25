@@ -23,10 +23,16 @@ Current build targets are:
 The client registers both its screen dimensions and its requested server-side
 world region. Linux and MS-DOS use `80x24`; Atari uses `40x24`; BBC uses its
 `39x24` drawable playfield because column 0 is reserved for MODE 7 colour
-control. The Amiga client registers protocol version 3 with pixel screen
-dimensions (320x256 PAL / 320x200 NTSC) while the world region stays the
-logical 40x24 grid; the server responds with 16-bit screen-pixel shape
-coordinates.
+control. The Amiga client registers pixel screen dimensions (320x256 PAL /
+320x200 NTSC) while the world region stays the logical 40x24 grid, and requests
+the `WIDE_COORDS` capability (bitmask `0x01`, sent as a hex text field appended
+to the add-client CSV); the server then responds with 16-bit screen-pixel shape
+coordinates that may straddle the viewport edge and are clipped when drawn.
+The Amiga registration still carries protocol version `3` in its CSV — that
+field is informational data only: feature selection happens exclusively through
+the capabilities bitmask.
+All other targets send no capabilities field and keep the exact legacy
+behaviour.
 
 ## Build prerequisites
 
@@ -194,8 +200,9 @@ to switch the whole playfield to proportional block rectangles; press it
 again to return to vectors. The current key is listed in the on-screen
 legend (info overlay).
 
-Host-side unit tests cover the shared v2/v3 coordinate decoder and the
-vector silhouette tracer used by this target (`make test-host` runs both):
+Host-side unit tests cover the shared capability-stride coordinate decoder
+(legacy 3-byte, wide-coordinate 5-byte, and rotation-aware 9-byte records) and
+the vector silhouette tracer used by this target (`make test-host` runs both):
 
 ```sh
 make test-host

@@ -22,6 +22,7 @@
 
 #include "fujinet-nio.h"
 
+#include "add_client_csv.h"
 #include "app_errors.h"
 #include "connection.h"
 #include "data.h"
@@ -29,6 +30,24 @@
 #include "screen.h"
 #include "shape_decode.h"
 #include "world.h"
+
+/* Protocol number reported in the registration CSV. It is informational
+ * only: feature selection on the wire happens exclusively through the
+ * capabilities bitmask below. */
+#ifdef __AMIGA__
+#define BWC_REGISTRATION_VERSION 3
+#else
+#define BWC_REGISTRATION_VERSION 2
+#endif
+
+/* Capabilities requested at registration. Only the Amiga target asks for
+ * anything (WIDE_COORDS); every other target sends the legacy 6-field
+ * form and keeps byte-identical behaviour. */
+#ifdef __AMIGA__
+#define BWC_REQUESTED_CAPS ((bwc_caps_t)BWC_CAP_WIDE_COORDS)
+#else
+#define BWC_REQUESTED_CAPS ((bwc_caps_t)0)
+#endif
 
 /* -----------------------------------------------------------------------
  * Internal helpers
@@ -432,21 +451,26 @@ int16_t read_response_prefix(uint8_t *payload_buf, int16_t payload_capacity)
 
 void send_client_data(void)
 {
-    char tmp[6];
+    uint16_t csv_len;
 
-    /* build "x-add-client name,<version>,screenX,screenY,worldX,worldY" */
-    memset((char *)app_data, 0, 64);
-    strcat((char *)app_data, name);
-    strcat((char *)app_data, ",");
-    itoa(bwc_client_version, tmp, 10); strcat((char *)app_data, tmp);
-    strcat((char *)app_data, ",");
-    itoa(REG_SCREEN_WIDTH,  tmp, 10); strcat((char *)app_data, tmp);
-    strcat((char *)app_data, ",");
-    itoa(REG_SCREEN_HEIGHT, tmp, 10); strcat((char *)app_data, tmp);
-    strcat((char *)app_data, ",");
-    itoa(REG_WORLD_WIDTH,   tmp, 10); strcat((char *)app_data, tmp);
-    strcat((char *)app_data, ",");
-    itoa(REG_WORLD_HEIGHT,  tmp, 10); strcat((char *)app_data, tmp);
+    /* build "x-add-client name,<version>,screenX,screenY,worldX,worldY"
+     * plus an optional 7th caps field as 0x-prefixed hex text */
+    memset((char *)app_data, 0, APP_DATA_SIZE);
+
+    bwc_client_caps = BWC_REQUESTED_CAPS;
+    csv_len = bwc_build_add_client_csv((char *)app_data, 64,
+                                       name,
+                                       (unsigned)BWC_REGISTRATION_VERSION,
+                                       (unsigned)REG_SCREEN_WIDTH,
+                                       (unsigned)REG_SCREEN_HEIGHT,
+                                       (unsigned)REG_WORLD_WIDTH,
+                                       (unsigned)REG_WORLD_HEIGHT,
+                                       (unsigned)bwc_client_caps);
+    if (csv_len == 0U || csv_len >= 64U) {
+        err = 1;
+        handle_err("build add-client");
+        return;
+    }
 
     create_command("x-add-client");
     append_command((char *)app_data);
