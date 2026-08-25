@@ -1,5 +1,6 @@
 #include <proto/graphics.h>
 #include <graphics/gfx.h>
+#include <graphics/rastport.h>
 
 #include "screen.h"
 #include "conio.h"
@@ -16,6 +17,13 @@
 static struct AreaInfo s_area_info[2];
 static SHORT s_area_buf[2][AREA_BUF_WORDS];
 static void *s_area_rp[2] = { NULL, NULL };
+
+/* AreaEnd rasterizes polygons through rp->TmpRas; without an initialised
+ * TmpRas the fill produces garbage (stray lines/dots) and can stomp
+ * memory. One shared scratch buffer, one bitplane at max screen size. */
+static struct TmpRas s_tmp_ras;
+static UBYTE s_tmp_ras_buf[SCREEN_PIXEL_WIDTH / 8 * SCREEN_PIXEL_HEIGHT];
+static uint8_t tmp_ras_bound;
 
 static void ensure_area_init(struct RastPort *rp)
 {
@@ -41,9 +49,15 @@ static void ensure_area_init(struct RastPort *rp)
         struct AreaInfo *ai = &s_area_info[i];
 
         /* This NDK's inline InitArea binds (areaInfo, buffer, max);
-         * the rastport link is ours to make. */
+         * the rastport links (AreaInfo and TmpRas) are ours to make. */
         InitArea(ai, &s_area_buf[i][0], VO_MAX_PTS);
         rp->AreaInfo = ai;
+        if (!tmp_ras_bound) {
+            InitTmpRas(&s_tmp_ras, s_tmp_ras_buf,
+                       (LONG)SCREEN_PIXEL_WIDTH / 8 * SCREEN_PIXEL_HEIGHT);
+            tmp_ras_bound = 1;
+        }
+        rp->TmpRas = &s_tmp_ras;
         s_area_rp[i] = (void *)rp;
     }
 }
