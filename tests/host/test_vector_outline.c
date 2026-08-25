@@ -220,6 +220,63 @@ static void test_embedded_shapes(void)
     CHECK_EQ_INT(off, embedded_shape_data_len, "embedded blob fully walked");
 }
 
+/* Wrapping worlds: the server sends copies with centres outside the
+ * screen. Segments must clip with true slopes, not disappear or
+ * vertex-clamp into false diagonals. */
+static void test_clip_segment(void)
+{
+    int32_t x0, y0, x1, y1;
+
+    /* fully inside: untouched */
+    x0 = 10; y0 = 10; x1 = 20; y1 = 20;
+    if (!vo_clip_segment(&x0, &y0, &x1, &y1, 0, 0, 319, 255)) {
+        printf("FAIL clip: inside segment reported invisible\n");
+        failures++;
+    }
+    if (x0 != 10 || y0 != 10 || x1 != 20 || y1 != 20) {
+        printf("FAIL clip: inside segment was modified\n");
+        failures++;
+    }
+
+    /* fully outside left */
+    x0 = -30; y0 = 10; x1 = -5; y1 = 20;
+    if (vo_clip_segment(&x0, &y0, &x1, &y1, 0, 0, 319, 255)) {
+        printf("FAIL clip: off-left segment reported visible\n");
+        failures++;
+    }
+
+    /* crossing the left edge: slope preserved, endpoints on the edge */
+    x0 = -40; y0 = 0; x1 = 40; y1 = 80;
+    if (!vo_clip_segment(&x0, &y0, &x1, &y1, 0, 0, 319, 255)) {
+        printf("FAIL clip: left-crossing segment reported invisible\n");
+        failures++;
+    }
+    if (x0 != 0 || y0 != 40) {
+        printf("FAIL clip: left crossing at (%ld,%ld), expected (0,40)\n",
+               (long)x0, (long)y0);
+        failures++;
+    }
+
+    /* centre far above the screen: only the lower part survives */
+    x0 = 100; y0 = -300; x1 = 140; y1 = -260;
+    if (vo_clip_segment(&x0, &y0, &x1, &y1, 0, 0, 319, 255)) {
+        printf("FAIL clip: fully-above segment reported visible\n");
+        failures++;
+    }
+
+    /* vertical segment crossing the bottom edge */
+    x0 = 200; y0 = 240; x1 = 200; y1 = 300;
+    if (!vo_clip_segment(&x0, &y0, &x1, &y1, 0, 0, 319, 255)) {
+        printf("FAIL clip: bottom-crossing segment reported invisible\n");
+        failures++;
+    }
+    if (y1 != 255) {
+        printf("FAIL clip: bottom crossing y1=%ld, expected 255\n",
+               (long)y1);
+        failures++;
+    }
+}
+
 int main(void)
 {
     test_empty_bitmap();
@@ -230,6 +287,7 @@ int main(void)
     test_diagonal_touch();
     test_truncation_fallback();
     test_embedded_shapes();
+    test_clip_segment();
 
     if (failures == 0) {
         printf("all vector outline tests passed\n");

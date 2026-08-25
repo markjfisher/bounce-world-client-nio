@@ -77,23 +77,42 @@ static const hand_shape *hand_vector_for(uint8_t shape_id)
     return NULL;
 }
 
-/* Line-art vector renderer (Asteroids/Elite style): every traced contour
- * is drawn as a closed pixel-line path - outers and holes alike. No area
- * fill, no TmpRas, no fill-convention artifacts. */
-
+/* Stroke a closed loop as pixel lines, clipping each segment against the
+ * screen. Wrapping worlds: the server sends one copy per visible wrap
+ * with centres that may sit off-screen - segments are clipped with true
+ * slopes, never vertex-clamped (which would draw false diagonals). */
 static void draw_contour_lines(struct RastPort *rp, const vo_point *pts,
                                uint8_t len)
 {
+    int32_t min_x = 0, min_y = 0;
+    int32_t max_x = SCREEN_PIXEL_WIDTH - 1;
+    int32_t max_y = (int32_t)amiga_conio_height() - 1;
+    int32_t pen_x = 0, pen_y = 0;
+    uint8_t pen_down = 0;
     uint8_t i;
 
     if (len < 2) {
         return;
     }
-    Move(rp, (LONG)pts[0].x, (LONG)pts[0].y);
-    for (i = 1; i < len; i++) {
-        Draw(rp, (LONG)pts[i].x, (LONG)pts[i].y);
+    SetAPen(rp, 2); /* reserved shape pen */
+
+    for (i = 0; i < len; i++) {
+        uint8_t j = (uint8_t)((i + 1 == len) ? 0 : i + 1);
+        int32_t ax = pts[i].x, ay = pts[i].y;
+        int32_t bx = pts[j].x, by = pts[j].y;
+
+        if (!vo_clip_segment(&ax, &ay, &bx, &by, min_x, min_y, max_x, max_y)) {
+            pen_down = 0;
+            continue;
+        }
+        if (!pen_down || ax != pen_x || ay != pen_y) {
+            Move(rp, (LONG)ax, (LONG)ay);
+        }
+        Draw(rp, (LONG)bx, (LONG)by);
+        pen_x = bx;
+        pen_y = by;
+        pen_down = 1;
     }
-    Draw(rp, (LONG)pts[0].x, (LONG)pts[0].y); /* close the loop */
 }
 
 static void draw_vector(struct RastPort *rp, const vo_outline *ol,
@@ -109,25 +128,12 @@ static void draw_vector(struct RastPort *rp, const vo_outline *ol,
         n = ol->contour_len[c];
         for (i = 0; i < n; i++) {
             const vo_point *v = &ol->pts[ol->contour_start[c] + i];
-            int32_t px = base_x + (int32_t)v->x * scale_x;
-            int32_t py = base_y + (int32_t)v->y * height_px / REG_WORLD_HEIGHT;
 
-            /* Bodies can transiently sit outside the registered screen
-             * while wrapping; clamp so lines stay on the bitmap. */
-            if (px < 0) {
-                px = 0;
-            }
-            if (px > SCREEN_PIXEL_WIDTH - 1) {
-                px = SCREEN_PIXEL_WIDTH - 1;
-            }
-            if (py < 0) {
-                py = 0;
-            }
-            if (py > height_px - 1) {
-                py = height_px - 1;
-            }
-            px_pts[i].x = (int16_t)px;
-            px_pts[i].y = (int16_t)py;
+            /* Unclamped: draw_contour_lines clips each segment against
+             * the screen, preserving true slopes for off-screen centres. */
+            px_pts[i].x = (int16_t)(base_x + (int32_t)v->x * scale_x);
+            px_pts[i].y = (int16_t)(base_y +
+                (int32_t)v->y * height_px / REG_WORLD_HEIGHT);
         }
         draw_contour_lines(rp, px_pts, n);
     }
@@ -210,7 +216,6 @@ static void draw_shape_at(uint8_t shape_id, int16_t center_x, int16_t center_y,
         const hand_shape *hand = hand_vector_for(shape_id);
 
         if (hand != NULL) {
-            SetAPen(rp, 2);
             for (uint8_t c = 0; c < hand->loop_count; c++) {
                 static vo_point hand_pts[VO_MAX_PTS];
                 const hand_loop *loop = &hand->loops[c];
@@ -218,24 +223,10 @@ static void draw_shape_at(uint8_t shape_id, int16_t center_x, int16_t center_y,
                 uint8_t i;
 
                 for (i = 0; i < loop->len; i++) {
-                    int32_t px = base_x + (int32_t)loop->pts[i].x * scale_x;
-                    int32_t py = base_y +
-                        (int32_t)loop->pts[i].y * (int32_t)h / REG_WORLD_HEIGHT;
-
-                    if (px < 0) {
-                        px = 0;
-                    }
-                    if (px > SCREEN_PIXEL_WIDTH - 1) {
-                        px = SCREEN_PIXEL_WIDTH - 1;
-                    }
-                    if (py < 0) {
-                        py = 0;
-                    }
-                    if (py > (int32_t)h - 1) {
-                        py = (int32_t)h - 1;
-                    }
-                    hand_pts[i].x = (int16_t)px;
-                    hand_pts[i].y = (int16_t)py;
+                    hand_pts[i].x = (int16_t)(base_x +
+                        (int32_t)loop->pts[i].x * scale_x);
+                    hand_pts[i].y = (int16_t)(base_y +
+                        (int32_t)loop->pts[i].y * (int32_t)h / REG_WORLD_HEIGHT);
                 }
                 draw_contour_lines(rp, hand_pts, loop->len);
             }
@@ -264,7 +255,7 @@ static void draw_shape_at(uint8_t shape_id, int16_t center_x, int16_t center_y,
 
 void gfx_show_shape_px(uint8_t shape_id, int16_t center_x, int16_t center_y)
 {
-    int32_t half_w, half_h, base_x, base_y;
+    int32_t base_x, base_y;
     uint16_t h;
     uint8_t width;
 
@@ -281,30 +272,14 @@ void gfx_show_shape_px(uint8_t shape_id, int16_t center_x, int16_t center_y)
     }
 
     h = amiga_conio_height();
-    half_w = ((int32_t)width * SCREEN_PIXEL_WIDTH / REG_WORLD_WIDTH) / 2;
-    half_h = ((int32_t)width * h / REG_WORLD_HEIGHT) / 2;
-    base_x = (int32_t)center_x - half_w;
-    base_y = (int32_t)center_y - half_h;
+    base_x = (int32_t)center_x -
+        ((int32_t)width * SCREEN_PIXEL_WIDTH / REG_WORLD_WIDTH) / 2;
+    base_y = (int32_t)center_y -
+        ((int32_t)width * h / REG_WORLD_HEIGHT) / 2;
 
+    /* Wrapping worlds: the server sends one copy per visible wrap, with
+     * centres that may sit off-screen (e.g. -2 or 322). Draw each copy
+     * as sent - draw_shape_at clips to what is actually viewable. No
+     * client-side seam duplication. */
     draw_shape_at(shape_id, center_x, center_y, base_x, base_y);
-
-    /* Wrap seam: the server wraps body centres at the world edge, so a
-     * shape straddling an edge must appear on BOTH sides of the screen
-     * (Asteroids-style) instead of popping between them. */
-    if (base_x < 0) {
-        draw_shape_at(shape_id, center_x, center_y,
-                      base_x + SCREEN_PIXEL_WIDTH, base_y);
-    }
-    if (base_x + 2 * half_w >= SCREEN_PIXEL_WIDTH) {
-        draw_shape_at(shape_id, center_x, center_y,
-                      base_x - SCREEN_PIXEL_WIDTH, base_y);
-    }
-    if (base_y < 0) {
-        draw_shape_at(shape_id, center_x, center_y,
-                      base_x, base_y + h);
-    }
-    if (base_y + 2 * half_h >= h) {
-        draw_shape_at(shape_id, center_x, center_y,
-                      base_x, base_y - h);
-    }
 }

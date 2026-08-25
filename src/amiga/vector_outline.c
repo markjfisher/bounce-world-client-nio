@@ -171,3 +171,71 @@ int vo_trace(const uint8_t *cells, uint8_t width, vo_outline *out)
 
     return out->truncated ? 1 : 0;
 }
+
+/* Region codes: 1=left 2=right 4=above 8=below the clip rectangle. */
+static uint8_t vo_out_code(int32_t x, int32_t y,
+                           int32_t min_x, int32_t min_y,
+                           int32_t max_x, int32_t max_y)
+{
+    uint8_t code = 0;
+
+    if (x < min_x) {
+        code |= 1;
+    } else if (x > max_x) {
+        code |= 2;
+    }
+    if (y < min_y) {
+        code |= 4;
+    } else if (y > max_y) {
+        code |= 8;
+    }
+    return code;
+}
+
+uint8_t vo_clip_segment(int32_t *x0, int32_t *y0, int32_t *x1, int32_t *y1,
+                        int32_t min_x, int32_t min_y,
+                        int32_t max_x, int32_t max_y)
+{
+    uint8_t c0 = vo_out_code(*x0, *y0, min_x, min_y, max_x, max_y);
+    uint8_t c1 = vo_out_code(*x1, *y1, min_x, min_y, max_x, max_y);
+    uint8_t guard;
+
+    for (guard = 0; guard < 8; guard++) {
+        uint8_t out;
+        int32_t x, y;
+
+        if ((c0 | c1) == 0) {
+            return 1; /* fully inside */
+        }
+        if ((c0 & c1) != 0) {
+            return 0; /* fully outside */
+        }
+
+        out = c0 ? c0 : c1;
+        if (out & 8) {
+            x = *x0 + (*x1 - *x0) * (max_y - *y0) / (*y1 - *y0);
+            y = max_y;
+        } else if (out & 4) {
+            x = *x0 + (*x1 - *x0) * (min_y - *y0) / (*y1 - *y0);
+            y = min_y;
+        } else if (out & 2) {
+            y = *y0 + (*y1 - *y0) * (max_x - *x0) / (*x1 - *x0);
+            x = max_x;
+        } else {
+            y = *y0 + (*y1 - *y0) * (min_x - *x0) / (*x1 - *x0);
+            x = min_x;
+        }
+
+        if (out == c0) {
+            *x0 = x;
+            *y0 = y;
+            c0 = vo_out_code(*x0, *y0, min_x, min_y, max_x, max_y);
+        } else {
+            *x1 = x;
+            *y1 = y;
+            c1 = vo_out_code(*x1, *y1, min_x, min_y, max_x, max_y);
+        }
+    }
+
+    return 0;
+}

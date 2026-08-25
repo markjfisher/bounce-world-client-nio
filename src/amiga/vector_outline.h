@@ -41,4 +41,14 @@ uint8_t vo_cell_filled(const uint8_t *cells, uint8_t width, uint8_t x, uint8_t y
  * 1 if any contour/vertex bound was hit (partial contours still valid). */
 int vo_trace(const uint8_t *cells, uint8_t width, vo_outline *out);
 
+/* Cohen-Sutherland clip of the segment (x0,y0)-(x1,y1) against the
+ * rectangle [min_x,max_x] x [min_y,max_y] (inclusive). Returns 1 if any
+ * part is visible, with the endpoints clipped in place so the drawn
+ * segment has the true slope; 0 if the segment is entirely outside.
+ * Wrapping worlds: the server sends one copy per visible wrap, with
+ * centres that may sit off-screen - clip segments, never vertices. */
+uint8_t vo_clip_segment(int32_t *x0, int32_t *y0, int32_t *x1, int32_t *y1,
+                        int32_t min_x, int32_t min_y,
+                        int32_t max_x, int32_t max_y);
+
 #endif /* BWC_AMIGA_VECTOR_OUTLINE_H */
