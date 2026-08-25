@@ -482,10 +482,10 @@ __attribute__((constructor)) static void amiga_screen_open(void)
     }
 
     /* Explicit palette: don't rely on Intuition defaults for a custom
-     * screen. 0 = background gray, 1 = text black, 2 = shape red. */
-    SetRGB4(&scr->ViewPort, 0, 9, 9, 9);
-    SetRGB4(&scr->ViewPort, 1, 0, 0, 0);
-    SetRGB4(&scr->ViewPort, 2, 15, 3, 3);
+     * screen. 0 = black background, 1 = white text, 2 = white lines. */
+    SetRGB4(&scr->ViewPort, 0, 0, 0, 0);
+    SetRGB4(&scr->ViewPort, 1, 15, 15, 15);
+    SetRGB4(&scr->ViewPort, 2, 15, 15, 15);
 
     font = OpenFont((struct TextAttr *)&((struct TextAttr){ (STRPTR)"topaz.font", 8, FS_NORMAL, FPF_ROMFONT }));
     if (!font) {

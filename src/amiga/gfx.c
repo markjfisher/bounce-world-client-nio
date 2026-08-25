@@ -1,132 +1,135 @@
 #include <proto/graphics.h>
-#include <graphics/gfx.h>
-#include <graphics/rastport.h>
 
 #include "screen.h"
 #include "conio.h"
 #include "gfx_render.h"
 #include "shapes.h"
-#include "data.h"
 #include "vector_outline.h"
+#include "data.h"
 
-/* Area-fill working storage: sized once from VO_MAX_PTS (boundary edges
- * of a width-5 shape are bounded well below it), allocated statically,
- * one slot per double-buffer rastport, initialised on first use - never
- * per frame, never on the application stack. */
-#define AREA_BUF_WORDS ((VO_MAX_PTS) * 5)
-static struct AreaInfo s_area_info[2];
-static SHORT s_area_buf[2][AREA_BUF_WORDS];
-static void *s_area_rp[2] = { NULL, NULL };
+/* ============================================================================
+ * HAND-CRAFTED SHAPE VECTORS
+ *
+ * Shapes listed in s_hand_shapes[] are drawn from these hand-authored
+ * vertex loops instead of the auto-traced cell bitmap. Design away:
+ *
+ *   - Coordinates are lattice corners: integers 0..width, x rightward,
+ *     y downward. The cell at column c, row r occupies the square
+ *     (c,r)..(c+1,r+1). A 5x5 shape therefore spans 0..5.
+ *   - Each loop is a closed polygon: the last vertex connects back to
+ *     the first automatically. Pen down at loops[0].pts[0], line to
+ *     every other vertex, close.
+ *   - Holes are just inner loops - everything is stroked, nothing is
+ *     filled, so winding direction does not matter.
+ *   - Loop coordinates scale automatically: x by SCREEN_PIXEL_WIDTH/40,
+ *     y by the runtime screen height/24. Author in the shape's own
+ *     0..width grid and it lands correctly on PAL and NTSC.
+ *
+ * To design a shape: draw it on grid paper (0..width), walk the outline
+ * clockwise, write down each corner, add inner loops for holes. Add an
+ * entry to s_hand_shapes[] with your shape id. Shapes not in the table
+ * fall back to the auto-traced bitmap outlines.
+ * ========================================================================== */
 
-/* AreaEnd rasterizes polygons through rp->TmpRas; without an initialised
- * TmpRas the fill produces garbage (stray lines/dots) and can stomp
- * memory. One shared scratch buffer, one bitplane at max screen size. */
-static struct TmpRas s_tmp_ras;
-static UBYTE s_tmp_ras_buf[SCREEN_PIXEL_WIDTH / 8 * SCREEN_PIXEL_HEIGHT];
-static uint8_t tmp_ras_bound;
+/* Example: 5x5 plus - arms one cell thick through the centre. */
+static const vo_point s_plus5_loop[] = {
+    {2, 0}, {3, 0}, {3, 2}, {5, 2}, {5, 3}, {3, 3},
+    {3, 5}, {2, 5}, {2, 3}, {0, 3}, {0, 2}, {2, 2}
+};
 
-static void ensure_area_init(struct RastPort *rp)
-{
-    int i;
+/* Example: 5x5 hollow square - outer loop + inner hole loop. */
+static const vo_point s_hollow5_outer[] = {
+    {0, 0}, {5, 0}, {5, 5}, {0, 5}
+};
+static const vo_point s_hollow5_hole[] = {
+    {2, 2}, {3, 2}, {3, 3}, {2, 3}
+};
 
-    for (i = 0; i < 2; i++) {
-        if (s_area_rp[i] == (void *)rp) {
-            return;
-        }
-    }
-    /* Two double-buffer rastports exist by construction; if a third ever
-     * appears, evict slot 0 and rebind rather than leaving AreaInfo NULL. */
-    for (i = 0; i < 2; i++) {
-        if (!s_area_rp[i]) {
-            break;
-        }
-    }
-    if (i == 2) {
-        i = 0;
-        s_area_rp[1] = NULL;
-    }
-    {
-        struct AreaInfo *ai = &s_area_info[i];
+typedef struct {
+    uint8_t len;
+    const vo_point *pts;
+} hand_loop;
 
-        /* This NDK's inline InitArea binds (areaInfo, buffer, max);
-         * the rastport links (AreaInfo and TmpRas) are ours to make. */
-        InitArea(ai, &s_area_buf[i][0], VO_MAX_PTS);
-        rp->AreaInfo = ai;
-        if (!tmp_ras_bound) {
-            InitTmpRas(&s_tmp_ras, s_tmp_ras_buf,
-                       (LONG)SCREEN_PIXEL_WIDTH / 8 * SCREEN_PIXEL_HEIGHT);
-            tmp_ras_bound = 1;
-        }
-        rp->TmpRas = &s_tmp_ras;
-        s_area_rp[i] = (void *)rp;
-    }
-}
+typedef struct {
+    uint8_t shape_id;
+    uint8_t loop_count;
+    const hand_loop *loops;
+} hand_shape;
 
-static void draw_contour(struct RastPort *rp, const vo_point *pts, uint8_t len)
+/* Key entries by the server's shape id (0..18). Adjust the ids below to
+ * target the shapes you want to override. */
+static const hand_shape s_hand_shapes[] = {
+    /* shape 1: 5x5 plus */
+    { 1, 1, (const hand_loop[]) { { 12, s_plus5_loop } } },
+    /* shape 2: 5x5 hollow square */
+    { 2, 2, (const hand_loop[]) { { 4, s_hollow5_outer }, { 4, s_hollow5_hole } } },
+};
+
+static const hand_shape *hand_vector_for(uint8_t shape_id)
 {
     uint8_t i;
 
-    if (len == 0) {
-        return;
+    for (i = 0; i < (uint8_t)(sizeof(s_hand_shapes) / sizeof(s_hand_shapes[0])); i++) {
+        if (s_hand_shapes[i].shape_id == shape_id) {
+            return &s_hand_shapes[i];
+        }
     }
-    AreaMove(rp, (LONG)pts[0].x, (LONG)pts[0].y);
-    for (i = 1; i < len; i++) {
-        AreaDraw(rp, (LONG)pts[i].x, (LONG)pts[i].y);
-    }
-    AreaEnd(rp);
+    return NULL;
 }
 
-/* Deterministic fill policy: every outer contour filled with the shape
- * pen first, then every enclosed hole refilled with the background pen,
- * each pass in contour order. The observable contract is that the filled
- * result equals the source cell bitmap (validated by the host rasterizer
- * test); holes nested inside other holes do not occur in the embedded
- * shapes, so two ordered passes are sufficient. */
+/* Line-art vector renderer (Asteroids/Elite style): every traced contour
+ * is drawn as a closed pixel-line path - outers and holes alike. No area
+ * fill, no TmpRas, no fill-convention artifacts. */
+
+static void draw_contour_lines(struct RastPort *rp, const vo_point *pts,
+                               uint8_t len)
+{
+    uint8_t i;
+
+    if (len < 2) {
+        return;
+    }
+    Move(rp, (LONG)pts[0].x, (LONG)pts[0].y);
+    for (i = 1; i < len; i++) {
+        Draw(rp, (LONG)pts[i].x, (LONG)pts[i].y);
+    }
+    Draw(rp, (LONG)pts[0].x, (LONG)pts[0].y); /* close the loop */
+}
+
 static void draw_vector(struct RastPort *rp, const vo_outline *ol,
                         int32_t base_x, int32_t base_y,
                         int32_t scale_x, int32_t height_px)
 {
     static vo_point px_pts[VO_MAX_PTS]; /* static: off the 64KB stack */
     uint8_t c, i, n;
-    int pass;
 
-    ensure_area_init(rp);
+    SetAPen(rp, 2); /* reserved shape pen */
 
-    for (pass = 0; pass < 2; pass++) {
-        SetAPen(rp, pass == 0 ? 2 : 0);
-        for (c = 0; c < ol->contour_count; c++) {
-            if ((int)(pass == 0 ? 0 : 1) != (int)ol->is_hole[c]) {
-                continue;
+    for (c = 0; c < ol->contour_count; c++) {
+        n = ol->contour_len[c];
+        for (i = 0; i < n; i++) {
+            const vo_point *v = &ol->pts[ol->contour_start[c] + i];
+            int32_t px = base_x + (int32_t)v->x * scale_x;
+            int32_t py = base_y + (int32_t)v->y * height_px / REG_WORLD_HEIGHT;
+
+            /* Bodies can transiently sit outside the registered screen
+             * while wrapping; clamp so lines stay on the bitmap. */
+            if (px < 0) {
+                px = 0;
             }
-            n = ol->contour_len[c];
-            for (i = 0; i < n; i++) {
-                const vo_point *v = &ol->pts[ol->contour_start[c] + i];
-
-                {
-                    /* Wire coords are int16 screen pixels, so base+extent can
-                     * exceed int16 for transient off-screen bodies; clamp in
-                     * int32 before narrowing so nothing wraps into view. */
-                    int32_t px = base_x + (int32_t)v->x * scale_x;
-                    int32_t py = base_y + (int32_t)v->y * height_px / REG_WORLD_HEIGHT;
-
-                    if (px < 0) {
-                        px = 0;
-                    }
-                    if (px > SCREEN_PIXEL_WIDTH - 1) {
-                        px = SCREEN_PIXEL_WIDTH - 1;
-                    }
-                    if (py < 0) {
-                        py = 0;
-                    }
-                    if (py > height_px - 1) {
-                        py = height_px - 1;
-                    }
-                    px_pts[i].x = (int16_t)px;
-                    px_pts[i].y = (int16_t)py;
-                }
+            if (px > SCREEN_PIXEL_WIDTH - 1) {
+                px = SCREEN_PIXEL_WIDTH - 1;
             }
-            draw_contour(rp, px_pts, n);
+            if (py < 0) {
+                py = 0;
+            }
+            if (py > height_px - 1) {
+                py = height_px - 1;
+            }
+            px_pts[i].x = (int16_t)px;
+            px_pts[i].y = (int16_t)py;
         }
+        draw_contour_lines(rp, px_pts, n);
     }
 }
 
@@ -205,12 +208,50 @@ void gfx_show_shape_px(uint8_t shape_id, int16_t center_x, int16_t center_y)
         return;
     }
 
-    /* Vector mode: trace the embedded cell bitmap into closed contours.
-     * If tracing ever exceeds the storage bounds, fall back to the block
-     * rectangle rather than drawing partial geometry. Fully off-screen
-     * shapes are skipped; partial ones rely on the raster clip like the
-     * block path does. */
-    if (vo_trace(shape->shape_data, width, &outline) != 0 || outline.contour_count == 0) {
+    /* Hand-crafted override: authored loops win over the auto-traced
+     * bitmap outline. Same scaling and stroking as traced contours. */
+    {
+        const hand_shape *hand = hand_vector_for(shape_id);
+
+        if (hand != NULL) {
+            SetAPen(rp, 2);
+            for (uint8_t c = 0; c < hand->loop_count; c++) {
+                static vo_point hand_pts[VO_MAX_PTS];
+                const hand_loop *loop = &hand->loops[c];
+                int32_t scale_x = SCREEN_PIXEL_WIDTH / REG_WORLD_WIDTH;
+                uint8_t i;
+
+                for (i = 0; i < loop->len; i++) {
+                    int32_t px = base_x + (int32_t)loop->pts[i].x * scale_x;
+                    int32_t py = base_y +
+                        (int32_t)loop->pts[i].y * (int32_t)h / REG_WORLD_HEIGHT;
+
+                    if (px < 0) {
+                        px = 0;
+                    }
+                    if (px > SCREEN_PIXEL_WIDTH - 1) {
+                        px = SCREEN_PIXEL_WIDTH - 1;
+                    }
+                    if (py < 0) {
+                        py = 0;
+                    }
+                    if (py > (int32_t)h - 1) {
+                        py = (int32_t)h - 1;
+                    }
+                    hand_pts[i].x = (int16_t)px;
+                    hand_pts[i].y = (int16_t)py;
+                }
+                draw_contour_lines(rp, hand_pts, loop->len);
+            }
+            return;
+        }
+    }
+
+    /* Vector mode: trace the embedded cell bitmap into closed contours and
+     * stroke them as pixel lines. Fully off-screen shapes are skipped;
+     * partial ones rely on the raster clip like the block path does. */
+    if (vo_trace(shape->shape_data, width, &outline) != 0 ||
+        outline.contour_count == 0) {
         draw_block(rp, center_x, center_y, width);
         return;
     }
