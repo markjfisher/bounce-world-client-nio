@@ -174,12 +174,12 @@ static void draw_block(struct RastPort *rp, int32_t center_x, int32_t center_y,
     RectFill(rp, (LONG)x0, (LONG)y0, (LONG)x1, (LONG)y1);
 }
 
-void gfx_show_shape_px(uint8_t shape_id, int16_t center_x, int16_t center_y)
+static void draw_shape_at(uint8_t shape_id, int16_t center_x, int16_t center_y,
+                          int32_t base_x, int32_t base_y)
 {
     struct RastPort *rp;
     const ShapeRecord *shape;
     static vo_outline outline; /* static: keeps geometry off the 64KB stack */
-    int32_t half_w, half_h, base_x, base_y;
     uint16_t h;
     uint8_t width;
 
@@ -198,10 +198,6 @@ void gfx_show_shape_px(uint8_t shape_id, int16_t center_x, int16_t center_y)
     }
 
     h = amiga_conio_height();
-    half_w = ((int32_t)width * SCREEN_PIXEL_WIDTH / REG_WORLD_WIDTH) / 2;
-    half_h = ((int32_t)width * h / REG_WORLD_HEIGHT) / 2;
-    base_x = (int32_t)center_x - half_w;
-    base_y = (int32_t)center_y - half_h;
 
     if (bwc_render_mode == RENDER_BLOCK) {
         draw_block(rp, center_x, center_y, width);
@@ -257,10 +253,58 @@ void gfx_show_shape_px(uint8_t shape_id, int16_t center_x, int16_t center_y)
     }
 
     if (base_x >= SCREEN_PIXEL_WIDTH || base_y >= (int32_t)h ||
-        base_x + half_w < 0 || base_y + half_h < 0) {
+        base_x + 2 * ((int32_t)width * SCREEN_PIXEL_WIDTH / REG_WORLD_WIDTH) < 0 ||
+        base_y + 2 * ((int32_t)width * h / REG_WORLD_HEIGHT) < 0) {
         return;
     }
 
     draw_vector(rp, &outline, base_x, base_y,
                 SCREEN_PIXEL_WIDTH / REG_WORLD_WIDTH, h);
+}
+
+void gfx_show_shape_px(uint8_t shape_id, int16_t center_x, int16_t center_y)
+{
+    int32_t half_w, half_h, base_x, base_y;
+    uint16_t h;
+    uint8_t width;
+
+    if (shape_id >= shape_count) {
+        return;
+    }
+    {
+        const ShapeRecord *shape = &shapes[shape_id];
+
+        width = shape->shape_width;
+        if (width == 0 || !shape->shape_data) {
+            return;
+        }
+    }
+
+    h = amiga_conio_height();
+    half_w = ((int32_t)width * SCREEN_PIXEL_WIDTH / REG_WORLD_WIDTH) / 2;
+    half_h = ((int32_t)width * h / REG_WORLD_HEIGHT) / 2;
+    base_x = (int32_t)center_x - half_w;
+    base_y = (int32_t)center_y - half_h;
+
+    draw_shape_at(shape_id, center_x, center_y, base_x, base_y);
+
+    /* Wrap seam: the server wraps body centres at the world edge, so a
+     * shape straddling an edge must appear on BOTH sides of the screen
+     * (Asteroids-style) instead of popping between them. */
+    if (base_x < 0) {
+        draw_shape_at(shape_id, center_x, center_y,
+                      base_x + SCREEN_PIXEL_WIDTH, base_y);
+    }
+    if (base_x + 2 * half_w >= SCREEN_PIXEL_WIDTH) {
+        draw_shape_at(shape_id, center_x, center_y,
+                      base_x - SCREEN_PIXEL_WIDTH, base_y);
+    }
+    if (base_y < 0) {
+        draw_shape_at(shape_id, center_x, center_y,
+                      base_x, base_y + h);
+    }
+    if (base_y + 2 * half_h >= h) {
+        draw_shape_at(shape_id, center_x, center_y,
+                      base_x, base_y - h);
+    }
 }
