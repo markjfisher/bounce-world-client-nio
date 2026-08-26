@@ -44,6 +44,7 @@
  * anything (WIDE_COORDS); every other target sends the legacy 6-field
  * form and keeps byte-identical behaviour. */
 #ifdef __AMIGA__
+// #define BWC_REQUESTED_CAPS ((bwc_caps_t)BWC_CAP_WIDE_COORDS) | ((bwc_caps_t)BWC_CAP_ROTATION)
 #define BWC_REQUESTED_CAPS ((bwc_caps_t)BWC_CAP_WIDE_COORDS)
 #else
 #define BWC_REQUESTED_CAPS ((bwc_caps_t)0)
