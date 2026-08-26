@@ -10,6 +10,7 @@ typedef unsigned bwc_caps_t;
 
 #define BWC_CAP_WIDE_COORDS 0x01U
 #define BWC_CAP_ROTATION    0x02U /* reserved: rendering deferred */
+#define BWC_CAP_BODY_ID     0x04U /* uint32 LE logical simulator id */
 
 /* Caps negotiated for the current session (0 = legacy behaviour).
  * Set at registration time; never persisted. */
@@ -23,6 +24,7 @@ typedef struct {
     int16_t  y;
     uint16_t angle; /* reserved: decoded only with BWC_CAP_ROTATION */
     int16_t  omega; /* reserved: decoded only with BWC_CAP_ROTATION */
+    uint32_t body_id; /* decoded only with BWC_CAP_BODY_ID */
 } ShapePos;
 
 /* Decode world-state shape records from the server payload.
@@ -33,8 +35,8 @@ typedef struct {
  *   BWC_CAP_WIDE_COORDS:         +2 bytes, stride 3 -> 5 (x/y widen from
  *                                uint8 to little-endian signed 16-bit
  *                                screen-pixel coordinates)
- *   BWC_CAP_ROTATION:            +4 bytes, stride 5 -> 9 (angle uint16 LE,
- *                                omega int16 LE)
+ *   BWC_CAP_ROTATION:            +4 bytes (angle uint16 LE, omega int16 LE)
+ *   BWC_CAP_BODY_ID:             +4 bytes appended after rotation (uint32 LE)
  * Returns the number of decoded entries. */
 uint8_t bwc_decode_shapes(const uint8_t *payload, uint16_t payload_len,
                           uint8_t count, bwc_caps_t caps,

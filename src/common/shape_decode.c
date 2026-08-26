@@ -9,6 +9,12 @@ static uint16_t rd_le16(const uint8_t *p)
     return (uint16_t)p[0] | ((uint16_t)p[1] << 8);
 }
 
+static uint32_t rd_le32(const uint8_t *p)
+{
+    return (uint32_t)p[0] | ((uint32_t)p[1] << 8) |
+           ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
+}
+
 uint8_t bwc_decode_shapes(const uint8_t *payload, uint16_t payload_len,
                           uint8_t count, bwc_caps_t caps,
                           ShapePos *out, uint8_t out_max)
@@ -19,6 +25,7 @@ uint8_t bwc_decode_shapes(const uint8_t *payload, uint16_t payload_len,
     uint16_t max_fit;
     unsigned wide = caps & BWC_CAP_WIDE_COORDS;
     unsigned rot  = caps & BWC_CAP_ROTATION;
+    unsigned body_id = caps & BWC_CAP_BODY_ID;
 
     if (!payload || !out || out_max == 0U) {
         return 0;
@@ -29,6 +36,9 @@ uint8_t bwc_decode_shapes(const uint8_t *payload, uint16_t payload_len,
     }
     if (rot) {
         stride += 4U; /* angle uint16 LE + omega int16 LE */
+    }
+    if (body_id) {
+        stride += 4U; /* uint32 LE, after all pre-existing optional fields */
     }
 
     n = count;
@@ -52,11 +62,19 @@ uint8_t bwc_decode_shapes(const uint8_t *payload, uint16_t payload_len,
             out[i].y = (int8_t)p[2];
         }
         if (rot) {
-            out[i].angle = rd_le16(&p[5]);
-            out[i].omega = (int16_t)rd_le16(&p[7]);
+            uint16_t rotation_offset = (uint16_t)(1U + (wide ? 4U : 2U));
+            out[i].angle = rd_le16(&p[rotation_offset]);
+            out[i].omega = (int16_t)rd_le16(&p[rotation_offset + 2U]);
         } else {
             out[i].angle = 0U;
             out[i].omega = 0;
+        }
+        if (body_id) {
+            uint16_t body_offset = (uint16_t)(1U + (wide ? 4U : 2U) +
+                                               (rot ? 4U : 0U));
+            out[i].body_id = rd_le32(&p[body_offset]);
+        } else {
+            out[i].body_id = 0;
         }
     }
 

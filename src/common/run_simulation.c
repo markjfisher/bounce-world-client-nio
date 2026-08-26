@@ -54,17 +54,22 @@ void run_simulation(void)
 
         while (is_running_sim) {
             wait_vsync();
+            bwc_async_foreground_phase = 1; /* foreground: display frame */
             frame_count = bwc_async_fetch_copy(frame, SHAPE_POS_MAX,
                                                 &frame_step, &frame_status);
-            if (frame_count != 0) {
+            {
                 uint32_t render_start = bwc_perf_ticks();
 
                 (void)frame_status;
+                if (frame_count != 0) {
                 current_step = frame_step;
+                }
+                /* A zero-shape snapshot is authoritative too: clear and
+                 * present it rather than leaving the prior frame visible. */
                 amiga_show_screen_shapes(frame, frame_count);
                 bwc_render_ticks_last = bwc_perf_ticks() - render_start;
-                if (bwc_overlay_enabled) bwc_perf_overlay_draw();
             }
+            if (bwc_overlay_enabled) bwc_perf_overlay_draw();
             handle_kb();
         }
         bwc_async_fetch_stop();

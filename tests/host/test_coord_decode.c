@@ -112,6 +112,21 @@ static void test_rotation_nine_byte(void)
     check_eq_int(out[0].omega, -384, "unknown extra bits keep omega");
 }
 
+static void test_body_id(void)
+{
+    /* 9-byte record: id=6, x=-2, y=322, body id=0x12345678 LE. */
+    const uint8_t payload[] = { 6, 0xFE, 0xFF, 0x42, 0x01,
+                                0x78, 0x56, 0x34, 0x12 };
+    ShapePos out[2];
+
+    check_eq_int(bwc_decode_shapes(payload, sizeof(payload), 1,
+                                   BWC_CAP_WIDE_COORDS | BWC_CAP_BODY_ID,
+                                   out, 2), 1, "body id count");
+    check_eq_int(out[0].x, -2, "body id x");
+    check_eq_int(out[0].y, 322, "body id y");
+    check_eq_int((int)out[0].body_id, 0x12345678, "body id LE");
+}
+
 static void test_out_max_clamp(void)
 {
     const uint8_t payload[15] = { 0 };
@@ -167,6 +182,7 @@ int main(void)
     test_wide_near_300();
     test_wide_extremes();
     test_rotation_nine_byte();
+    test_body_id();
     test_out_max_clamp();
     test_degenerate();
     test_payload_len_bound();

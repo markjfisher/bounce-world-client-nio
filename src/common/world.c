@@ -6,6 +6,7 @@
 
 #include "app_errors.h"
 #ifdef __AMIGA__
+#include "bwc_interpolation.h"
 #include "bwc_perf.h"
 #endif
 #include "connection.h"
@@ -35,6 +36,7 @@ int16_t fetch_client_state(void)
     int16_t n;
 
     bwc_perf_fetch_begin();
+    bwc_async_worker_phase = 21; /* worker: about to submit x-w */
 #endif
 
     memset(app_data, 0, APP_DATA_SIZE);
@@ -45,7 +47,10 @@ int16_t fetch_client_state(void)
         return 0;
     }
 #ifdef __AMIGA__
+    bwc_async_worker_phase = 22; /* worker: x-w submitted */
+    bwc_async_worker_phase = 23; /* worker: about to read response */
     n = read_response_min(app_data, 1, APP_PAYLOAD_SIZE);
+    bwc_async_worker_phase = 24; /* worker: read_response_min returned */
     now = bwc_perf_ticks();
     bwc_fetch_ticks_last = now - fetch_start;
     if (n > 0) {

@@ -23,6 +23,7 @@
 #include <proto/timer.h>
 
 #include "bwc_perf.h"
+#include "bwc_interpolation.h"
 #include "delay.h"
 #include "screen.h"
 
@@ -57,7 +58,9 @@ void bwc_perf_init(void)
 {
     struct EClockVal eclock;
 
-    bwc_overlay_enabled = false;
+    /* Temporary first-frame diagnostic: the worker can stall before the
+     * main loop has had a chance to process the O key. */
+    bwc_overlay_enabled = true;
     bwc_cnt_retry_pause = 0;
     bwc_cnt_write_retry = 0;
     bwc_cnt_fn_read     = 0;
@@ -194,4 +197,14 @@ void bwc_perf_overlay_draw(void)
     print_padded(bwc_perf_delta_ms(bwc_write_ticks_last), 2);
     cputs(" O");
     print_padded(bwc_perf_delta_ms(other), 2);
+
+    gotoxy(0, (uint8_t)(y + 2));
+    cputs("FG ");
+    print_padded(bwc_async_foreground_phase, 2);
+    cputs(" WK ");
+    print_padded(bwc_async_worker_phase, 2);
+    cputs(" A");
+    cputc(bwc_async_fetch_alive() ? '1' : '0');
+    cputs(" P");
+    cputc(bwc_interpolation_enabled ? '1' : '0');
 }

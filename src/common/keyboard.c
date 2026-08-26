@@ -106,6 +106,10 @@ void handle_kb_command(char c)
         case 'o':
             bwc_perf_overlay_toggle();
             break;
+        case 'P':
+        case 'p':
+            bwc_interpolation_toggle();
+            break;
 #endif
 
         default: break;

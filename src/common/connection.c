@@ -48,7 +48,8 @@
  * form and keeps byte-identical behaviour. */
 #ifdef __AMIGA__
 // #define BWC_REQUESTED_CAPS ((bwc_caps_t)BWC_CAP_WIDE_COORDS) | ((bwc_caps_t)BWC_CAP_ROTATION)
-#define BWC_REQUESTED_CAPS ((bwc_caps_t)BWC_CAP_WIDE_COORDS)
+#define BWC_REQUESTED_CAPS ((bwc_caps_t)BWC_CAP_WIDE_COORDS | \
+                            (bwc_caps_t)BWC_CAP_BODY_ID)
 #else
 #define BWC_REQUESTED_CAPS ((bwc_caps_t)0)
 #endif

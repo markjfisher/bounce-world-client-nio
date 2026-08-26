@@ -163,17 +163,10 @@ static void draw_char(char c)
 
 void amiga_conio_present(void)
 {
-    if (!screen_ready || swap_disabled) {
-        return;
-    }
-    /* If the buffer swap is rejected, fall back to single-buffer drawing:
-     * keep rendering into the visible bitmap rather than a never-shown
-     * off-screen buffer. */
-    if (!ChangeScreenBuffer(scr, sbuf[cur_buf])) {
-        swap_disabled = 1;
-        cur_buf = 0;
-        ChangeScreenBuffer(scr, sbuf[0]);
-    }
+    /* The current Amiberry/Intuition configuration does not complete the
+     * SafeMessage handoff needed for asynchronous screen-buffer swaps.
+     * Render directly to the visible screen instead of risking blank frames
+     * or a foreground wait. */
 }
 
 uint16_t amiga_conio_height(void)
@@ -183,9 +176,7 @@ uint16_t amiga_conio_height(void)
 
 void amiga_conio_swap(void)
 {
-    if (!swap_disabled) {
-        cur_buf ^= 1U;
-    }
+    /* See amiga_conio_present(): single-buffer rendering for now. */
 }
 
 void clrscr(void)
@@ -509,7 +500,7 @@ __attribute__((constructor)) static void amiga_screen_open(void)
         SetFont(&brp[cur_buf], font);
     }
     cur_buf = 0;
-    ChangeScreenBuffer(scr, sbuf[0]);
+    swap_disabled = 1;
 
     win = OpenWindowTags(NULL,
                          WA_CustomScreen, (Tag)scr,
