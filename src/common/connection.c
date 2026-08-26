@@ -24,6 +24,9 @@
 
 #include "add_client_csv.h"
 #include "app_errors.h"
+#ifdef __AMIGA__
+#include "bwc_perf.h"
+#endif
 #include "connection.h"
 #include "data.h"
 #include "delay.h"
@@ -91,6 +94,9 @@ uint8_t request_client_data(void)
     uint16_t written = 0;
     uint16_t len     = (uint16_t)client_data_cmd_len;
     uint8_t attempt;
+#ifdef __AMIGA__
+    uint32_t write_t0;
+#endif
 
     /* append LF (0x0A) without mutating the cached command buffer */
     client_data_cmd[len]     = 0x0A;
@@ -98,9 +104,15 @@ uint8_t request_client_data(void)
 
     for (attempt = 0; attempt < 3; ++attempt) {
         written = 0;
+#ifdef __AMIGA__
+        write_t0 = bwc_perf_ticks();
+#endif
         err = fn_write(server_handle, write_offset,
                        (const uint8_t *)client_data_cmd,
                        (uint16_t)(len + 1), &written);
+#ifdef __AMIGA__
+        bwc_write_ticks_last += bwc_perf_ticks() - write_t0;
+#endif
 
         if (err == FN_OK) {
             break;
@@ -111,7 +123,15 @@ uint8_t request_client_data(void)
             break;
         }
 
+#ifdef __AMIGA__
+        bwc_cnt_write_retry++;
+        bwc_cnt_write_retry_last++;
+        bwc_cnt_retry_pause++;
+        bwc_cnt_retry_pause_last++;
+        bwc_perf_retry_pause();
+#else
         network_retry_pause();
+#endif
     }
 
     client_data_cmd[len] = '\0';
@@ -207,6 +227,9 @@ static int16_t read_raw(uint8_t *buf, int16_t len)
     uint8_t  result;
 
     while (total < len) {
+#ifdef __AMIGA__
+        bwc_cnt_fn_read++;
+#endif
         result = fn_read(server_handle,
                          read_offset,
                          buf + total,
@@ -215,7 +238,12 @@ static int16_t read_raw(uint8_t *buf, int16_t len)
                          &flags);
 
         if (result == FN_ERR_NOT_READY || result == FN_ERR_BUSY) {
+#ifdef __AMIGA__
+            bwc_cnt_retry_pause++;
+            bwc_perf_retry_pause();
+#else
             network_retry_pause();
+#endif
             continue;
         }
 
@@ -232,7 +260,12 @@ static int16_t read_raw(uint8_t *buf, int16_t len)
         }
 
         if (bytes_read == 0) {
+#ifdef __AMIGA__
+            bwc_cnt_retry_pause++;
+            bwc_perf_retry_pause();
+#else
             network_retry_pause();
+#endif
             continue;
         }
 
@@ -241,6 +274,9 @@ static int16_t read_raw(uint8_t *buf, int16_t len)
          * next read). The stream position advances by what was actually
          * served, but this caller's buffer only received what it asked
          * for — never walk it past its end. */
+#ifdef __AMIGA__
+        bwc_cnt_bytes_read += bytes_read;
+#endif
         read_offset += (uint32_t)bytes_read;
         if (bytes_read > (uint16_t)(len - total)) {
             bytes_read = (uint16_t)(len - total);
@@ -303,17 +339,34 @@ int16_t read_response_min(uint8_t *buf, int16_t min_payload, int16_t max_payload
     uint16_t packet_total = 0;
     bool     have_header  = false;
     bool     eof_seen     = false;
+#ifdef __AMIGA__
+    uint32_t read_t0;
+#endif
 
     while (total < need_total) {
+#ifdef __AMIGA__
+        bwc_cnt_fn_read++;
+        read_t0 = bwc_perf_ticks();
+#endif
         result = fn_read(server_handle,
                          read_offset,
                          buf + total,
                          (uint16_t)(max_total - total),
                          &bytes_read,
                          &flags);
+#ifdef __AMIGA__
+        bwc_read_ticks_last += bwc_perf_ticks() - read_t0;
+        bwc_cnt_fn_read_last++;
+#endif
 
         if (result == FN_ERR_NOT_READY || result == FN_ERR_BUSY) {
+#ifdef __AMIGA__
+            bwc_cnt_retry_pause++;
+            bwc_cnt_retry_pause_last++;
+            bwc_perf_retry_pause();
+#else
             network_retry_pause();
+#endif
             continue;
         }
 
@@ -330,12 +383,22 @@ int16_t read_response_min(uint8_t *buf, int16_t min_payload, int16_t max_payload
         }
 
         if (bytes_read == 0) {
+#ifdef __AMIGA__
+            bwc_cnt_retry_pause++;
+            bwc_cnt_retry_pause_last++;
+            bwc_perf_retry_pause();
+#else
             network_retry_pause();
+#endif
             continue;
         }
 
         /* Same eager-over-return guard as read_raw: the stream advances by
          * what was served, the caller's buffer only by what it asked for. */
+#ifdef __AMIGA__
+        bwc_cnt_bytes_read += bytes_read;
+        bwc_cnt_bytes_read_last += bytes_read;
+#endif
         read_offset += (uint32_t)bytes_read;
         if (bytes_read > (uint16_t)(max_total - total)) {
             bytes_read = (uint16_t)(max_total - total);

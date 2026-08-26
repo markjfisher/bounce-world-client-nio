@@ -10,6 +10,10 @@
 #include "delay.h"
 #include "double_buffer.h"
 #include "keyboard.h"
+#ifdef __AMIGA__
+#include "bwc_interpolation.h"
+#include "bwc_perf.h"
+#endif
 #include "sound.h"
 #include "status.h"
 #include "world.h"
@@ -27,6 +31,10 @@ void run_simulation(void)
     init_screen();
     cursor(0);
 
+#ifdef __AMIGA__
+    bwc_perf_init();
+#endif
+
     is_alt_screen        = 0;
     is_running_sim       = 1;
     is_showing_info      = 0;
@@ -36,6 +44,37 @@ void run_simulation(void)
     play_sound_on_collision = 0;
 
     get_world_clients();
+
+#ifdef __AMIGA__
+    if (bwc_async_fetch_start()) {
+        ShapePos frame[SHAPE_POS_MAX];
+        uint8_t frame_step;
+        uint8_t frame_status;
+        uint8_t frame_count;
+
+        while (is_running_sim) {
+            wait_vsync();
+            frame_count = bwc_async_fetch_copy(frame, SHAPE_POS_MAX,
+                                                &frame_step, &frame_status);
+            if (frame_count != 0) {
+                uint32_t render_start = bwc_perf_ticks();
+
+                (void)frame_status;
+                current_step = frame_step;
+                amiga_show_screen_shapes(frame, frame_count);
+                bwc_render_ticks_last = bwc_perf_ticks() - render_start;
+                if (bwc_overlay_enabled) bwc_perf_overlay_draw();
+            }
+            handle_kb();
+        }
+        bwc_async_fetch_stop();
+        while (bwc_async_fetch_alive()) {
+            wait_vsync();
+        }
+        disconnect_service();
+        return;
+    }
+#endif
 
     while (is_running_sim) {
         n = fetch_client_state();
@@ -54,8 +93,17 @@ void run_simulation(void)
         /* Only redraw when the world step has advanced */
         new_step_id = app_payload[0];
         if (new_step_id != current_step) {
+#ifdef __AMIGA__
+            uint32_t render_start = bwc_perf_ticks();
+#endif
             current_step = new_step_id;
             show_screen();
+#ifdef __AMIGA__
+            bwc_render_ticks_last = bwc_perf_ticks() - render_start;
+            if (bwc_overlay_enabled) {
+                bwc_perf_overlay_draw();
+            }
+#endif
         }
 
         handle_kb();

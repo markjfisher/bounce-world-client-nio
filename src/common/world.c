@@ -5,6 +5,9 @@
 #include <string.h>
 
 #include "app_errors.h"
+#ifdef __AMIGA__
+#include "bwc_perf.h"
+#endif
 #include "connection.h"
 #include "data.h"
 #include "debug.h"
@@ -25,11 +28,35 @@ void create_client_data_command(void)
 
 int16_t fetch_client_state(void)
 {
+#ifdef __AMIGA__
+    static uint32_t last_fetch_completion_ticks = 0;
+    uint32_t fetch_start = bwc_perf_ticks();
+    uint32_t now;
+    int16_t n;
+
+    bwc_perf_fetch_begin();
+#endif
+
     memset(app_data, 0, APP_DATA_SIZE);
     if (!request_client_data()) {
+#ifdef __AMIGA__
+        bwc_fetch_ticks_last = bwc_perf_ticks() - fetch_start;
+#endif
         return 0;
     }
+#ifdef __AMIGA__
+    n = read_response_min(app_data, 1, APP_PAYLOAD_SIZE);
+    now = bwc_perf_ticks();
+    bwc_fetch_ticks_last = now - fetch_start;
+    if (n > 0) {
+        bwc_cnt_fetches++;
+        bwc_fetch_interval_ticks_last = now - last_fetch_completion_ticks;
+        last_fetch_completion_ticks = now;
+    }
+    return n;
+#else
     return read_response_min(app_data, 1, APP_PAYLOAD_SIZE);
+#endif
 }
 
 void get_world_state(void)

@@ -6,6 +6,10 @@
 #include <string.h>
 
 #include "app_errors.h"
+#ifdef __AMIGA__
+#include "bwc_interpolation.h"
+#include "bwc_perf.h"
+#endif
 #include "connection.h"
 #include "data.h"
 #include "debug.h"
@@ -58,13 +62,8 @@ void toggle_info(void)
     }
 }
 
-void handle_kb(void)
+void handle_kb_command(char c)
 {
-    char c;
-
-    if (kbhit() == 0) return;
-    c = cgetc();
-
     switch (c) {
         case '+': do_command("x-inc"); break;
         case '-': do_command("x-dec"); break;
@@ -103,8 +102,31 @@ void handle_kb(void)
                                   ? RENDER_BLOCK
                                   : RENDER_VECTOR;
             break;
+        case 'O':
+        case 'o':
+            bwc_perf_overlay_toggle();
+            break;
 #endif
 
         default: break;
     }
+}
+
+void handle_kb(void)
+{
+    char c;
+    if (kbhit() == 0) return;
+    c = cgetc();
+#ifdef __AMIGA__
+    if (bwc_async_fetch_active()) {
+        switch (c) {
+            case '+': case '-': case 'F': case 'f': case 'R': case 'r':
+            case '1': case '2': case '3': case '4': case '5':
+                bwc_async_fetch_queue_command(c);
+                return;
+            default: break;
+        }
+    }
+#endif
+    handle_kb_command(c);
 }

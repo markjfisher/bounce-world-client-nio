@@ -227,3 +227,27 @@ void show_screen(void)
 
     show_other_screen();
 }
+
+#ifdef __AMIGA__
+/* Async fetches supply decoded positions; presentation remains exclusively
+ * in the foreground task so graphics state is never shared with the worker. */
+void amiga_show_screen_shapes(const ShapePos *decoded, uint8_t ndecoded)
+{
+    uint8_t i;
+
+    swap_buffer();
+    if (info_display_count < 2) {
+        full_clr();
+        if (is_showing_info) show_info();
+        info_display_count++;
+    } else {
+        playfield_clr();
+    }
+    for (i = 0; i < ndecoded; ++i) {
+        gfx_show_shape_px(decoded[i].shape_id, decoded[i].x, decoded[i].y);
+    }
+    if (is_showing_clients) show_clients();
+    if (is_showing_broadcast) broadcast();
+    show_other_screen();
+}
+#endif

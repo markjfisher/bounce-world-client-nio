@@ -64,6 +64,12 @@ SOURCES += $(wildcard $(SRCDIR)/common/*.s)
 SOURCES += $(wildcard $(SRCDIR)/$(CURRENT_PLATFORM)/*.c)
 SOURCES += $(wildcard $(SRCDIR)/$(CURRENT_PLATFORM)/*.s)
 
+# Pure interpolation math is shared with the host test harness but linked
+# only into the Amiga client; legacy targets retain their original images.
+ifneq ($(CURRENT_TARGET),amiga)
+SOURCES := $(filter-out $(SRCDIR)/common/bwc_interpolation_math.c,$(SOURCES))
+endif
+
 ifeq ($(CURRENT_TARGET),bbc)
 SOURCES := $(filter-out $(SRCDIR)/common/hex_dump.c,$(SOURCES))
 SOURCES := $(filter-out $(SRCDIR)/common/embedded_shapes.c,$(SOURCES))

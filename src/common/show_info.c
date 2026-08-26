@@ -73,6 +73,7 @@ void show_info(void)
 
 #ifdef __AMIGA__
     print_reverse("V"); cputs("ec ");
+    print_reverse("O"); cputs("vl ");
 #endif
 
 #ifdef __BBC__
