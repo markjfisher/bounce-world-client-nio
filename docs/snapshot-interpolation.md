@@ -1,11 +1,9 @@
 # Snapshot interpolation for the Bouncy World client
 
-Design discussion notes — no code has been written against this yet. This
-document captures how client-side interpolation could work for the Bouncy
-World renderer, why it needs no server changes, and where the prior art
-lives. Written after live packet captures confirmed the wire contract
-(`docs/` context: capability negotiation and rotation decoding are already
-shipped; see `../README.md`).
+Implemented design notes for the Bouncy World renderer. The Amiga client
+keeps two past snapshots and renders their blend at the display rate while a
+separate worker fetches the next snapshot. Legacy clients retain the existing
+raw-packet path.
 
 ## Why the obvious approach seems impossible (and isn't)
 
@@ -28,9 +26,13 @@ techniques:
 The entire cost of interpolation is one packet of added latency (typically
 50–150 ms). For this application it is invisible.
 
-## Server changes: none. Cross-client sync: none needed.
+## Server identity extension and cross-client sync
 
-The server keeps broadcasting authoritative snapshots exactly as today.
+The server remains authoritative. It now offers an opt-in `BODY_ID`
+capability and emits a stable uint32 body id after each visible-shape record
+for capable clients. It also orders records deterministically by body id and
+visible-image position. Older clients keep their existing record layout.
+
 Each client buffers its own two snapshots and lags its own render clock.
 Clients were already desynchronised by jitter and tick phase before
 interpolation; afterwards they differ by the same order of magnitude.
@@ -52,19 +54,18 @@ snapshot N−1. `shapeId` alone is **not sufficient**:
   with id 3) — some are wrap-seam copies of one body, some are distinct
   bodies sharing a type.
 
-Practical greedy matcher (sufficient at ≤240 shapes):
+Implemented identity-aware matcher:
 
-1. Filter previous-snapshot candidates by equal `shapeId`.
-2. Among candidates, pick nearest-neighbour by distance from the previous
-   position advanced by one packet's motion.
-3. Compare **wrap-aware**: a copy at x=−6 matches a previous x=314 on a
-   320-wide region, not x=40. Seam copies should match seam copies — match
-   copy-to-copy, never body-to-body across the seam.
+1. Filter previous-snapshot candidates by equal `bodyId`.
+2. For every visible copy of that body, consider translations by ±screen
+   width and height, and choose the nearest image to the current copy.
+3. Blend the matched image in its local pixel space. This preserves separate
+   copies at a wrap seam and never substitutes an opposite-edge image.
 4. If the best match moved further than plausible (teleport / despawn /
    respawn), skip blending for that shape this cycle: draw snapshot N
    directly instead of interpolating garbage.
 
-Because copies are matched copy-to-copy, position blending stays inside one
+Because copies are matched image-to-image, position blending stays inside one
 region's pixel space and the existing viewport clipping handles straddling
 results unchanged.
 
@@ -96,7 +97,7 @@ on packet arrival:
 each frame:
     u = clamp((render_time - t_prev) / (t_curr - t_prev), 0, 1)
     for each shape s in curr:
-        p = best wrap-aware match in prev (id, then nearest)
+        p = best wrap-aware image match in prev (body id, then nearest)
         if no plausible p: draw s directly; continue
         draw(s.id,
              lerp(p.x, s.x, u),
@@ -109,16 +110,16 @@ each frame:
 observed inter-arrival variance (a mini jitter buffer). Tune by eye before
 adding cleverness.
 
-## Where this fits the current codebase (when implemented)
+## Where this fits the current codebase
 
 - Decode: `bwc_decode_shapes()` already parses 5-byte (WIDE_COORDS) records;
   the 9-byte ROTATION layout including angle/omega is implemented and tested.
 - Render entry: `gfx_show_shape_px(id, x, y)` in `src/amiga/gfx.c`; adding
   an angle parameter plus the rotate-about-centre transform is the deferred
   ROTATION goal recorded in the workspace `deferred-work.md`.
-- Interpolation would slot between `fetch_client_state()` and the render
-  call as a small pure module (snapshot ring + matcher + blender), host-
-  testable like `add_client_csv.c`.
+- `src/amiga/interpolation.c` supplies the snapshot worker, handoff, and
+  blend path. `src/common/bwc_interpolation_math.c` keeps matching and
+  blending host-testable.
 
 ## Prior art
 

@@ -58,9 +58,9 @@ void bwc_perf_init(void)
 {
     struct EClockVal eclock;
 
-    /* Temporary first-frame diagnostic: the worker can stall before the
-     * main loop has had a chance to process the O key. */
-    bwc_overlay_enabled = true;
+    /* Diagnostics remain available through the O key, but normal play must
+     * not reserve screen space for the development overlay. */
+    bwc_overlay_enabled = false;
     bwc_cnt_retry_pause = 0;
     bwc_cnt_write_retry = 0;
     bwc_cnt_fn_read     = 0;

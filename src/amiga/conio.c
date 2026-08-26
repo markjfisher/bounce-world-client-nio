@@ -32,9 +32,12 @@ static struct Window *win;
 static struct TextFont *font;
 static struct ScreenBuffer *sbuf[2];
 static struct RastPort brp[2];
+static struct MsgPort *safe_port;
+static struct MsgPort *display_port;
 static uint16_t screen_h_px;
 static uint8_t cur_buf;
-static uint8_t swap_disabled;
+static uint8_t swap_pending;
+static uint8_t double_buffer_started;
 static uint8_t cur_x, cur_y;
 static uint8_t cur_revers;
 static uint8_t cur_cursor_visible;
@@ -47,6 +50,28 @@ static uint8_t cell_rev[SCREEN_WIDTH * SCREEN_HEIGHT];
 static uint8_t cursor_on_screen;
 static uint8_t cursor_cell_x, cursor_cell_y;
 static uint8_t cursor_saved_ch, cursor_saved_rev;
+
+/* ChangeScreenBuffer() replies to the DBufInfo belonging to the buffer being
+ * installed.  Once both replies arrive, the old bitmap is safe to render
+ * into and the displayed bitmap has been visible for at least one frame. */
+static void wait_for_buffer_message(struct MsgPort *port)
+{
+    while (GetMsg(port) == NULL) {
+        Wait(1UL << port->mp_SigBit);
+    }
+}
+
+static void finish_pending_swap(void)
+{
+    if (!swap_pending) {
+        return;
+    }
+
+    wait_for_buffer_message(safe_port);
+    wait_for_buffer_message(display_port);
+    swap_pending = 0;
+    cur_buf ^= 1U;
+}
 
 static void render_cell(uint8_t cx, uint8_t cy, uint8_t ch, uint8_t rev)
 {
@@ -163,10 +188,19 @@ static void draw_char(char c)
 
 void amiga_conio_present(void)
 {
-    /* The current Amiberry/Intuition configuration does not complete the
-     * SafeMessage handoff needed for asynchronous screen-buffer swaps.
-     * Render directly to the visible screen instead of risking blank frames
-     * or a foreground wait. */
+    if (!screen_ready || swap_pending) {
+        return;
+    }
+
+    /* Make sure all graphics.library drawing has reached the back bitmap
+     * before asking Intuition to display it. */
+    WaitBlit();
+    if (ChangeScreenBuffer(scr, sbuf[cur_buf]) != 0) {
+        /* Do not mark a buffer unsafe unless Intuition actually accepted the
+         * flip. A failed flip is harmless: retain this off-screen buffer and
+         * render the next frame into it rather than waiting forever. */
+        swap_pending = 1;
+    }
 }
 
 uint16_t amiga_conio_height(void)
@@ -176,7 +210,19 @@ uint16_t amiga_conio_height(void)
 
 void amiga_conio_swap(void)
 {
-    /* See amiga_conio_present(): single-buffer rendering for now. */
+    if (!screen_ready) {
+        return;
+    }
+
+    /* The connection/setup UI renders before the first animation frame and
+     * does not call present(). Keep it on the initial, visible bitmap. */
+    if (!double_buffer_started) {
+        cur_buf = 1;
+        double_buffer_started = 1;
+        return;
+    }
+
+    finish_pending_swap();
 }
 
 void clrscr(void)
@@ -411,6 +457,9 @@ char cgetc(void)
 
 static void close_all(void)
 {
+    if (swap_pending && safe_port && display_port) {
+        finish_pending_swap();
+    }
     if (win) {
         CloseWindow(win);
         win = NULL;
@@ -422,6 +471,14 @@ static void close_all(void)
     if (sbuf[0]) {
         FreeScreenBuffer(scr, sbuf[0]);
         sbuf[0] = NULL;
+    }
+    if (display_port) {
+        DeleteMsgPort(display_port);
+        display_port = NULL;
+    }
+    if (safe_port) {
+        DeleteMsgPort(safe_port);
+        safe_port = NULL;
     }
     if (font) {
         CloseFont(font);
@@ -486,11 +543,23 @@ __attribute__((constructor)) static void amiga_screen_open(void)
     SetFont(&scr->RastPort, font);
 
     sbuf[0] = AllocScreenBuffer(scr, NULL, SB_SCREEN_BITMAP);
-    sbuf[1] = AllocScreenBuffer(scr, NULL, 0);
+    sbuf[1] = AllocScreenBuffer(scr, NULL, SB_COPY_BITMAP);
     if (!sbuf[0] || !sbuf[1]) {
         close_all();
         return;
     }
+
+    safe_port = CreateMsgPort();
+    display_port = CreateMsgPort();
+    if (!safe_port || !display_port) {
+        close_all();
+        return;
+    }
+
+    sbuf[0]->sb_DBufInfo->dbi_SafeMessage.mn_ReplyPort = safe_port;
+    sbuf[0]->sb_DBufInfo->dbi_DispMessage.mn_ReplyPort = display_port;
+    sbuf[1]->sb_DBufInfo->dbi_SafeMessage.mn_ReplyPort = safe_port;
+    sbuf[1]->sb_DBufInfo->dbi_DispMessage.mn_ReplyPort = display_port;
 
     /* This NDK's ScreenBuffer carries no RastPort; bind our own to each
      * buffer bitmap. */
@@ -499,8 +568,11 @@ __attribute__((constructor)) static void amiga_screen_open(void)
         brp[cur_buf].BitMap = sbuf[cur_buf]->sb_BitMap;
         SetFont(&brp[cur_buf], font);
     }
+    /* Buffer zero is the initial visible bitmap for the setup UI. The first
+     * animation-frame swap selects buffer one as the initial back buffer. */
     cur_buf = 0;
-    swap_disabled = 1;
+    swap_pending = 0;
+    double_buffer_started = 0;
 
     win = OpenWindowTags(NULL,
                          WA_CustomScreen, (Tag)scr,
