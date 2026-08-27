@@ -85,6 +85,7 @@ static void bwc_fetch_worker(void)
             bwc_async_worker_phase = 6; /* worker: snapshot published */
         }
         while (pop_command(&command)) handle_kb_command(command);
+        pace_client_fetch();
     }
     worker_alive = 0;
 }

@@ -9,15 +9,24 @@
 #include "bwc_interpolation.h"
 #include "bwc_perf.h"
 #endif
+#ifdef __linux__
+#include "bwc_latency_trace.h"
+#endif
 #include "connection.h"
 #include "data.h"
 #include "debug.h"
 #include "delay.h"
 #include "display.h"
+#include "fetch_pacing.h"
 #include "keyboard.h"
 #include "world.h"
 
 static char *x_w_cmd = "x-w ";
+
+void pace_client_fetch(void)
+{
+    bwc_pace_fetch_interval(fetch_interval_ms);
+}
 
 void create_client_data_command(void)
 {
@@ -29,14 +38,17 @@ void create_client_data_command(void)
 
 int16_t fetch_client_state(void)
 {
+    int16_t n;
 #ifdef __AMIGA__
     static uint32_t last_fetch_completion_ticks = 0;
     uint32_t fetch_start = bwc_perf_ticks();
     uint32_t now;
-    int16_t n;
-
     bwc_perf_fetch_begin();
     bwc_async_worker_phase = 21; /* worker: about to submit x-w */
+#endif
+
+#ifdef __linux__
+    bwc_latency_trace_fetch_begin();
 #endif
 
     memset(app_data, 0, APP_DATA_SIZE);
@@ -62,7 +74,11 @@ int16_t fetch_client_state(void)
     }
     return n;
 #else
-    return read_response_min(app_data, 1, APP_PAYLOAD_SIZE);
+    n = read_response_min(app_data, 1, APP_PAYLOAD_SIZE);
+#ifdef __linux__
+    bwc_latency_trace_fetch_complete(n > 0);
+#endif
+    return n;
 #endif
 }
 

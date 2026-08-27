@@ -6,6 +6,7 @@
 
 #define APPSTORE_KEY_ENDPOINT "endpoint"
 #define APPSTORE_KEY_NAME     "name"
+#define APPSTORE_KEY_FETCH_INTERVAL "fetch_interval_ms"
 
 bool appstore_read_setting(char *buffer, uint8_t max_len, const char *key);
 bool appstore_write_setting(const char *buffer, const char *key);

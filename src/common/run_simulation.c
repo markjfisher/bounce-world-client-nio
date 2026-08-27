@@ -14,6 +14,9 @@
 #include "bwc_interpolation.h"
 #include "bwc_perf.h"
 #endif
+#ifdef __linux__
+#include "bwc_latency_trace.h"
+#endif
 #include "sound.h"
 #include "status.h"
 #include "world.h"
@@ -112,8 +115,12 @@ void run_simulation(void)
         }
 
         handle_kb();
+        pace_client_fetch();
     }
 
     /* Either errored or user quit - deregister from the server */
+#ifdef __linux__
+    bwc_latency_trace_report();
+#endif
     disconnect_service();
 }

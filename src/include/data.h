@@ -76,6 +76,10 @@ extern uint8_t app_status;
 
 extern uint8_t info_display_count;
 
+/* Minimum interval between snapshot (x-w) requests. Persisted in the
+ * app-store configuration; 100 ms protects the normal 10 UPS server. */
+extern uint16_t fetch_interval_ms;
+
 /* WORLD FLAGS/DATA - must stay contiguous in memory */
 extern uint16_t world_width;
 extern uint16_t world_height;

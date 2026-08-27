@@ -19,8 +19,13 @@
 /* Maximum lengths for user-entered strings */
 #define ENDPOINT_LEN 60
 #define NAME_LEN     8
+#define FETCH_INTERVAL_LEN 6
+#define FETCH_INTERVAL_DEFAULT 100U
+#define FETCH_INTERVAL_MIN 10U
+#define FETCH_INTERVAL_MAX 1000U
 
 static char endpoint_input[ENDPOINT_LEN + 1];
+static char fetch_interval_input[FETCH_INTERVAL_LEN];
 
 static char *version = "nio-3.0.0";
 
@@ -80,6 +85,13 @@ void show_name(char *s)
     cputsxy(txp + 2, yps + 14, s);
 }
 
+static void show_fetch_interval(char *s)
+{
+    cputsxy(txp, yps + 16, "Fetch interval (ms):");
+    cputsxy(txp, yps + 17, "> ");
+    cputsxy(txp + 2, yps + 17, s);
+}
+
 static void cput_rev1(char *s)
 {
     revers(1); cputc(s[0]);
@@ -88,16 +100,16 @@ static void cput_rev1(char *s)
 
 static void show_menu(void)
 {
-    chlinexy(txp + 3, 20, 28);
-    cputsxy(txp + 4, 21, "Change ");
+    cputsxy(txp + 2, 21, "Change ");
     cput_rev1("Server ");
-    cputs("Change ");
-    cput_rev1("Name");
+    cputs(" ");
+    cput_rev1("Name ");
+    cputs(" ");
+    cput_rev1("Fetch");
     revers(1);
     gotoxy(txp + 5, 22);
     cputs("Press a key to continue");
     revers(0);
-    chlinexy(txp + 3, 23, 28);
     cursor(0);
 }
 
@@ -115,6 +127,20 @@ static void show_store_error(void)
 static void clear_store_error(void)
 {
     cputsxy(txp + 3, 18, "                  ");
+}
+
+static uint8_t parse_fetch_interval(const char *s)
+{
+    char *end;
+    unsigned long value = strtoul(s, &end, 10);
+
+    if (s[0] == '\0' || *end != '\0' || value < FETCH_INTERVAL_MIN ||
+        value > FETCH_INTERVAL_MAX) {
+        cputsxy(txp + 3, 18, "Rate 10-1000 ms  ");
+        return 0;
+    }
+    fetch_interval_ms = (uint16_t)value;
+    return 1;
 }
 
 /* -----------------------------------------------------------------------
@@ -153,6 +179,21 @@ static void get_info_changes(void)
                 show_name(name);
                 break;
 
+            case 'F':
+            case 'f':
+                get_input(txp + 2, yps + 17, FETCH_INTERVAL_LEN,
+                          fetch_interval_input);
+                if (parse_fetch_interval(fetch_interval_input) &&
+                    appstore_write_setting(fetch_interval_input,
+                                           APPSTORE_KEY_FETCH_INTERVAL)) {
+                    clear_store_error();
+                } else if (appstore_last_error() != FN_OK) {
+                    show_store_error();
+                }
+                itoa((int)fetch_interval_ms, fetch_interval_input, 10);
+                show_fetch_interval(fetch_interval_input);
+                break;
+
             default:
                 /* Only proceed once both fields are filled */
                 if (strlen(endpoint_input) > 0 && strlen(name) > 0) {
@@ -171,12 +212,22 @@ void get_info(void)
 {
     memset(endpoint_input, 0, sizeof(endpoint_input));
     memset(name, 0, sizeof(name));
+    fetch_interval_ms = FETCH_INTERVAL_DEFAULT;
+    itoa((int)fetch_interval_ms, fetch_interval_input, 10);
 
     show_header();
     appstore_read_setting(endpoint_input, sizeof(endpoint_input), APPSTORE_KEY_ENDPOINT);
     appstore_read_setting(name, sizeof(name), APPSTORE_KEY_NAME);
+    if (appstore_read_setting(fetch_interval_input, sizeof(fetch_interval_input),
+                              APPSTORE_KEY_FETCH_INTERVAL)) {
+        if (!parse_fetch_interval(fetch_interval_input)) {
+            fetch_interval_ms = FETCH_INTERVAL_DEFAULT;
+            itoa((int)fetch_interval_ms, fetch_interval_input, 10);
+        }
+    }
     show_server(endpoint_input);
     show_name(name);
+    show_fetch_interval(fetch_interval_input);
     show_menu();
 
     get_info_changes();

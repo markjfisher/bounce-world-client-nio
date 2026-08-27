@@ -24,6 +24,9 @@
 
 #include "add_client_csv.h"
 #include "app_errors.h"
+#ifdef __linux__
+#include "bwc_latency_trace.h"
+#endif
 #ifdef __AMIGA__
 #include "bwc_perf.h"
 #endif
@@ -151,6 +154,9 @@ uint8_t request_client_data(void)
         return 0;
     }
     write_offset += (uint32_t)written;
+#ifdef __linux__
+    bwc_latency_trace_write_complete();
+#endif
 #ifdef __AMIGA__
     bwc_perf_write_complete();
 #endif
@@ -550,11 +556,19 @@ void send_client_data(void)
     create_command("x-add-client");
     append_command((char *)app_data);
     send_command();
-    read_response_wait((uint8_t *)&client_id, 1);
+    client_id = 0;
+    if (read_response_wait((uint8_t *)&client_id, 1) != 1) {
+        if (err == FN_OK) {
+            err = FN_ERR_IO;
+        }
+        handle_err("client registration response");
+        return;
+    }
 
     if (client_id == 0) {
-        err = 1;
-        handle_err("bad client id");
+        err = FN_ERR_IO;
+        handle_err("server rejected registration");
+        return;
     }
 
     memset(client_str, 0, 8);

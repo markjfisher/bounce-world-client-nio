@@ -11,7 +11,7 @@
 TARGETS = atari bbc linux msdos amiga
 PROGRAM := bwcn
 
-.PHONY: all clean $(TARGETS) disk disk-% test-host-coords test-host-vectors test-host-csv test-host-interpolation test-host
+.PHONY: all clean $(TARGETS) disk disk-% test-host-coords test-host-vectors test-host-csv test-host-interpolation test-host-pacing test-host
 
 all:
 	@for target in $(TARGETS); do \
@@ -66,4 +66,11 @@ test-host-interpolation:
 	  -o build/test_interpolation_math.host
 	build/test_interpolation_math.host
 
-test-host: test-host-coords test-host-vectors test-host-csv test-host-interpolation
+test-host-pacing:
+	@mkdir -p build
+	gcc -Wall -Wextra -O2 -std=c99 -Isrc/include \
+	  src/common/fetch_pacing.c tests/host/test_fetch_pacing.c \
+	  -o build/test_fetch_pacing.host
+	build/test_fetch_pacing.host
+
+test-host: test-host-coords test-host-vectors test-host-csv test-host-interpolation test-host-pacing
