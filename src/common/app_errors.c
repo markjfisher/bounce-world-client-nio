@@ -85,9 +85,15 @@ void handle_err(char *reason)
 
         gotoxy(0, wherey() + 1);
 
+        /* On Amiga, preserve this screen too: otherwise the Shell restores
+         * immediately and hides the only useful transport error evidence. */
+#ifdef __AMIGA__
+        cgetc();
+#elif defined(__CC65__)
         if (doesclrscrafterexit()) {
             cgetc();
         }
+#endif
         exit(1);
     }
 }

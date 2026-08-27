@@ -25,7 +25,8 @@
 #define FETCH_INTERVAL_MAX 1000U
 
 static char endpoint_input[ENDPOINT_LEN + 1];
-static char fetch_interval_input[FETCH_INTERVAL_LEN];
+/* get_input() writes its terminator at s[len], so retain room for it. */
+static char fetch_interval_input[FETCH_INTERVAL_LEN + 1];
 
 static char *version = "nio-3.0.0";
 
