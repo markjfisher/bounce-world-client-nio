@@ -25,6 +25,7 @@
 #include "bwc_perf.h"
 #include "bwc_interpolation.h"
 #include "delay.h"
+#include "fujinet-nio.h"
 #include "screen.h"
 
 bool     bwc_overlay_enabled = false;
@@ -46,6 +47,26 @@ uint32_t bwc_write_ticks_last  = 0;
 uint32_t bwc_fetch_ticks_last         = 0;
 uint32_t bwc_render_ticks_last        = 0;
 uint32_t bwc_fetch_interval_ticks_last = 0;
+uint32_t bwc_request_to_write_ticks_last = 0;
+uint32_t bwc_write_to_first_byte_ticks_last = 0;
+uint32_t bwc_first_byte_to_complete_ticks_last = 0;
+uint16_t bwc_write_exchanges_last = 0;
+uint16_t bwc_write_transport_retry_last = 0;
+uint16_t bwc_write_service_retry_last = 0;
+uint16_t bwc_write_zero_accepted_last = 0;
+uint16_t bwc_write_response_length_last = 0;
+uint8_t bwc_write_response_device_last = 0;
+uint8_t bwc_write_response_command_last = 0;
+uint8_t bwc_broker_stage_last = 0;
+uint8_t bwc_broker_result_last = 0;
+uint8_t bwc_write_status_last = 0xff;
+uint16_t bwc_write_bytes_last = 0;
+uint8_t bwc_read_called_last = 0;
+int16_t bwc_read_result_last = 0;
+
+static uint32_t fetch_started_ticks;
+static uint32_t write_complete_ticks;
+static uint32_t first_byte_ticks;
 
 static struct MsgPort    *perf_port = NULL;
 static struct timerequest *perf_req = NULL;
@@ -93,6 +114,17 @@ void bwc_perf_init(void)
 
 void bwc_perf_fetch_begin(void)
 {
+    fetch_started_ticks          = bwc_perf_ticks();
+    write_complete_ticks         = 0;
+    first_byte_ticks             = 0;
+    bwc_request_to_write_ticks_last = 0;
+    bwc_write_to_first_byte_ticks_last = 0;
+    bwc_first_byte_to_complete_ticks_last = 0;
+    /* Write/result diagnostics are published by their respective completion
+     * paths.  Do not blank them while the next asynchronous fetch is in
+     * flight: at the foreground frame rate that transient placeholder was
+     * usually what the overlay showed (W255/0, H0/0, B0/0), rather than a
+     * completed FujiNet outcome. */
     bwc_cnt_retry_pause_last = 0;
     bwc_cnt_write_retry_last = 0;
     bwc_cnt_fn_read_last     = 0;
@@ -100,6 +132,57 @@ void bwc_perf_fetch_begin(void)
     bwc_pause_ticks_last     = 0;
     bwc_read_ticks_last      = 0;
     bwc_write_ticks_last     = 0;
+}
+
+void bwc_perf_write_diagnostics(void)
+{
+    fn_write_diagnostics_t diagnostics;
+
+    fn_write_get_last_diagnostics(&diagnostics);
+    bwc_write_exchanges_last = diagnostics.exchanges;
+    bwc_write_transport_retry_last = diagnostics.transport_retry;
+    bwc_write_service_retry_last = diagnostics.service_retry;
+    bwc_write_zero_accepted_last = diagnostics.zero_accepted;
+    bwc_write_response_length_last = diagnostics.response_length;
+    bwc_write_response_device_last = diagnostics.response_device;
+    bwc_write_response_command_last = diagnostics.response_command;
+    fn_amiga_transport_last_broker_detail(&bwc_broker_stage_last,
+                                          &bwc_broker_result_last);
+}
+
+void bwc_perf_write_result(uint8_t status, uint16_t written)
+{
+    bwc_write_status_last = status;
+    bwc_write_bytes_last = written;
+}
+
+void bwc_perf_read_result(int16_t result)
+{
+    bwc_read_called_last = 1;
+    bwc_read_result_last = result;
+}
+
+void bwc_perf_write_complete(void)
+{
+    write_complete_ticks = bwc_perf_ticks();
+    bwc_request_to_write_ticks_last = write_complete_ticks - fetch_started_ticks;
+}
+
+void bwc_perf_first_byte(void)
+{
+    if (first_byte_ticks != 0) {
+        return;
+    }
+
+    first_byte_ticks = bwc_perf_ticks();
+    bwc_write_to_first_byte_ticks_last = first_byte_ticks - write_complete_ticks;
+}
+
+void bwc_perf_fetch_complete(uint32_t now)
+{
+    if (first_byte_ticks != 0) {
+        bwc_first_byte_to_complete_ticks_last = now - first_byte_ticks;
+    }
 }
 
 void bwc_perf_retry_pause(void)
@@ -165,10 +248,38 @@ static void print_padded(uint32_t v, uint8_t width)
 void bwc_perf_overlay_draw(void)
 {
     uint8_t y = SCREEN_HEIGHT - 4;
-    uint32_t accounted = bwc_pause_ticks_last + bwc_read_ticks_last +
-                         bwc_write_ticks_last;
-    uint32_t other = bwc_fetch_ticks_last > accounted
-                         ? bwc_fetch_ticks_last - accounted : 0;
+    uint16_t write_exchanges;
+    uint16_t write_transport_retry;
+    uint16_t write_service_retry;
+    uint16_t write_zero_accepted;
+    uint16_t write_response_length;
+    uint8_t write_status;
+    uint16_t write_bytes;
+    uint8_t read_called;
+    int16_t read_result;
+    uint8_t response_device;
+    uint8_t response_command;
+    uint8_t broker_stage;
+    uint8_t broker_result;
+
+    /* The fetch worker resets and fills these fields independently of the
+     * foreground renderer. Snapshot the related write outcome together so
+     * one overlay frame never combines two different exchanges. */
+    Forbid();
+    write_exchanges = bwc_write_exchanges_last;
+    write_transport_retry = bwc_write_transport_retry_last;
+    write_service_retry = bwc_write_service_retry_last;
+    write_zero_accepted = bwc_write_zero_accepted_last;
+    write_response_length = bwc_write_response_length_last;
+    write_status = bwc_write_status_last;
+    write_bytes = bwc_write_bytes_last;
+    read_called = bwc_read_called_last;
+    read_result = bwc_read_result_last;
+    response_device = bwc_write_response_device_last;
+    response_command = bwc_write_response_command_last;
+    broker_stage = bwc_broker_stage_last;
+    broker_result = bwc_broker_result_last;
+    Permit();
 
     gotoxy(0, y);
     revers(0);
@@ -185,26 +296,48 @@ void bwc_perf_overlay_draw(void)
     cputs("ms");
 
     gotoxy(0, (uint8_t)(y + 1));
-    cputs("BYT");
-    print_padded(bwc_cnt_bytes_read_last, 4);
-    cputs(" F");
-    print_padded(bwc_perf_delta_ms(bwc_fetch_ticks_last), 3);
+    cputs("LAT W");
+    print_padded(bwc_perf_delta_ms(bwc_request_to_write_ticks_last), 3);
     cputs(" R");
-    print_padded(bwc_perf_delta_ms(bwc_render_ticks_last), 2);
-    cputs(" IO");
     print_padded(bwc_perf_delta_ms(bwc_read_ticks_last), 3);
-    cputs(" W");
-    print_padded(bwc_perf_delta_ms(bwc_write_ticks_last), 2);
-    cputs(" O");
-    print_padded(bwc_perf_delta_ms(other), 2);
+    cputs(" FB");
+    print_padded(bwc_perf_delta_ms(bwc_write_to_first_byte_ticks_last), 3);
+    cputs(" DR");
+    print_padded(bwc_perf_delta_ms(bwc_first_byte_to_complete_ticks_last), 3);
+    cputs(" T");
+    print_padded(bwc_perf_delta_ms(bwc_fetch_ticks_last), 3);
 
     gotoxy(0, (uint8_t)(y + 2));
-    cputs("FG ");
-    print_padded(bwc_async_foreground_phase, 2);
-    cputs(" WK ");
-    print_padded(bwc_async_worker_phase, 2);
-    cputs(" A");
-    cputc(bwc_async_fetch_alive() ? '1' : '0');
-    cputs(" P");
-    cputc(bwc_interpolation_enabled ? '1' : '0');
+    cputs("WX");
+    print_padded(write_exchanges, 3);
+    cputs(" TR");
+    print_padded(write_transport_retry, 2);
+    cputs(" SR");
+    print_padded(write_service_retry, 2);
+    cputs(" ZA");
+    print_padded(write_zero_accepted, 2);
+    cputs(" RD");
+    print_padded(bwc_cnt_fn_read_last, 2);
+    cputs(" BY");
+    print_padded(bwc_cnt_bytes_read_last, 3);
+
+    gotoxy(0, (uint8_t)(y + 3));
+    cputs("OUT W");
+    print_padded(write_status, 3);
+    cputs("/");
+    print_padded(write_bytes, 3);
+    cputs(" R");
+    print_padded(read_called, 1);
+    cputs("/");
+    print_padded((uint16_t)read_result, 5);
+    cputs(" H");
+    print_padded(response_device, 2);
+    cputs("/");
+    print_padded(response_command, 2);
+    cputs(" B");
+    print_padded(broker_stage, 1);
+    cputs("/");
+    print_padded(broker_result, 3);
+
+    (void)write_response_length;
 }

@@ -136,6 +136,10 @@ uint8_t request_client_data(void)
     }
 
     client_data_cmd[len] = '\0';
+#ifdef __AMIGA__
+    bwc_perf_write_diagnostics();
+    bwc_perf_write_result(err, written);
+#endif
     if (err != FN_OK) {
 #ifdef BWC_IGNORE_TRANSIENT_CLIENT_IO
         if (err == FN_ERR_IO || err == FN_ERR_TIMEOUT ||
@@ -147,6 +151,9 @@ uint8_t request_client_data(void)
         return 0;
     }
     write_offset += (uint32_t)written;
+#ifdef __AMIGA__
+    bwc_perf_write_complete();
+#endif
     return 1;
 }
 
@@ -399,6 +406,9 @@ int16_t read_response_min(uint8_t *buf, int16_t min_payload, int16_t max_payload
 #ifdef __AMIGA__
         bwc_cnt_bytes_read += bytes_read;
         bwc_cnt_bytes_read_last += bytes_read;
+        if (bytes_read != 0) {
+            bwc_perf_first_byte();
+        }
 #endif
         read_offset += (uint32_t)bytes_read;
         if (bytes_read > (uint16_t)(max_total - total)) {

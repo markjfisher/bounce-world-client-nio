@@ -50,9 +50,11 @@ int16_t fetch_client_state(void)
     bwc_async_worker_phase = 22; /* worker: x-w submitted */
     bwc_async_worker_phase = 23; /* worker: about to read response */
     n = read_response_min(app_data, 1, APP_PAYLOAD_SIZE);
+    bwc_perf_read_result(n);
     bwc_async_worker_phase = 24; /* worker: read_response_min returned */
     now = bwc_perf_ticks();
     bwc_fetch_ticks_last = now - fetch_start;
+    bwc_perf_fetch_complete(now);
     if (n > 0) {
         bwc_cnt_fetches++;
         bwc_fetch_interval_ticks_last = now - last_fetch_completion_ticks;
