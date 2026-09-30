@@ -118,8 +118,13 @@ ASFLAGS += --asm-include-dir $(SRCDIR)/$(CURRENT_PLATFORM)
 ASFLAGS += --asm-include-dir $(SRCDIR)/common
 ASFLAGS += --asm-include-dir $(SRCDIR)
 ifeq ($(CURRENT_TARGET),bbc)
-ASFLAGS += --asm-include-dir /home/markf/dev/bbc/cc65/libsrc/bbc
-ASFLAGS += --asm-include-dir /home/markf/dev/bbc/cc65/asminc
+# cc65 checkout; BBC assembly includes its libsrc/bbc and asminc headers.
+CC65_HOME ?= ../cc65
+ifeq ($(wildcard $(CC65_HOME)/libsrc/bbc/oslib/os.inc),)
+$(error CC65_HOME does not point at a cc65 checkout with BBC headers: $(CC65_HOME))
+endif
+ASFLAGS += --asm-include-dir $(CC65_HOME)/libsrc/bbc
+ASFLAGS += --asm-include-dir $(CC65_HOME)/asminc
 endif
 
 LDFLAGS_atari := -C cfg/atari.cfg
