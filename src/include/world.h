@@ -2,6 +2,7 @@
 #define BWC_WORLD_H
 
 #include <stdint.h>
+#include "bwc_features.h"
 
 extern uint16_t world_width;
 extern uint16_t world_height;
@@ -21,6 +22,8 @@ void get_world_cmd(void);
 void get_broadcast(void);
 int16_t fetch_client_state(void);
 void create_client_data_command(void);
+#if BWC_FEATURE_FETCH_PACING
 void pace_client_fetch(void);
+#endif
 
 #endif /* BWC_WORLD_H */

@@ -70,6 +70,15 @@ ifneq ($(CURRENT_TARGET),amiga)
 SOURCES := $(filter-out $(SRCDIR)/common/bwc_interpolation_math.c,$(SOURCES))
 endif
 
+# The 8-bit targets build without fetch pacing and registration capabilities
+# (see src/include/bwc_features.h), so they leave out the sources for them.
+BWC_8BIT_TARGETS := atari bbc
+ifneq ($(filter $(CURRENT_TARGET),$(BWC_8BIT_TARGETS)),)
+SOURCES := $(filter-out $(SRCDIR)/common/fetch_pacing.c \
+                        $(SRCDIR)/common/shape_decode.c \
+                        $(SRCDIR)/common/add_client_csv.c,$(SOURCES))
+endif
+
 ifeq ($(CURRENT_TARGET),bbc)
 SOURCES := $(filter-out $(SRCDIR)/common/hex_dump.c,$(SOURCES))
 SOURCES := $(filter-out $(SRCDIR)/common/embedded_shapes.c,$(SOURCES))
@@ -154,6 +163,9 @@ CFLAGS_msdos += -DBWC_IGNORE_TRANSIENT_CLIENT_IO
 endif
 endif
 CFLAGS += $(CFLAGS_$(CURRENT_TARGET))
+ifneq ($(filter $(CURRENT_TARGET),$(BWC_8BIT_TARGETS)),)
+CFLAGS += -DBWC_8BIT_TARGET
+endif
 
 # Dependency files  
 -include $(DEPENDS)

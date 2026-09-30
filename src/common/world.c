@@ -17,16 +17,20 @@
 #include "debug.h"
 #include "delay.h"
 #include "display.h"
+#if BWC_FEATURE_FETCH_PACING
 #include "fetch_pacing.h"
+#endif
 #include "keyboard.h"
 #include "world.h"
 
 static char *x_w_cmd = "x-w ";
 
+#if BWC_FEATURE_FETCH_PACING
 void pace_client_fetch(void)
 {
     bwc_pace_fetch_interval(fetch_interval_ms);
 }
+#endif
 
 void create_client_data_command(void)
 {

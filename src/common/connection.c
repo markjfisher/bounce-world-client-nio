@@ -22,8 +22,11 @@
 
 #include "fujinet-nio.h"
 
-#include "add_client_csv.h"
 #include "app_errors.h"
+#include "bwc_features.h"
+#if BWC_FEATURE_CAPS
+#include "add_client_csv.h"
+#endif
 #ifdef __linux__
 #include "bwc_latency_trace.h"
 #endif
@@ -34,7 +37,9 @@
 #include "data.h"
 #include "delay.h"
 #include "screen.h"
+#if BWC_FEATURE_CAPS
 #include "shape_decode.h"
+#endif
 #include "world.h"
 
 /* Protocol number reported in the registration CSV. It is informational
@@ -48,7 +53,9 @@
 
 /* Capabilities requested at registration. Only the Amiga target asks for
  * anything (WIDE_COORDS); every other target sends the legacy 6-field
- * form and keeps byte-identical behaviour. */
+ * form and keeps byte-identical behaviour. The 8-bit targets build without
+ * capabilities at all (see bwc_features.h). */
+#if BWC_FEATURE_CAPS
 #ifdef __AMIGA__
 // #define BWC_REQUESTED_CAPS ((bwc_caps_t)BWC_CAP_WIDE_COORDS) | ((bwc_caps_t)BWC_CAP_ROTATION)
 #define BWC_REQUESTED_CAPS ((bwc_caps_t)BWC_CAP_WIDE_COORDS | \
@@ -56,6 +63,7 @@
 #else
 #define BWC_REQUESTED_CAPS ((bwc_caps_t)0)
 #endif
+#endif /* BWC_FEATURE_CAPS */
 
 /* -----------------------------------------------------------------------
  * Internal helpers
@@ -532,6 +540,7 @@ int16_t read_response_prefix(uint8_t *payload_buf, int16_t payload_capacity)
 
 void send_client_data(void)
 {
+#if BWC_FEATURE_CAPS
     uint16_t csv_len;
 
     /* build "x-add-client name,<version>,screenX,screenY,worldX,worldY"
@@ -552,6 +561,25 @@ void send_client_data(void)
         handle_err("build add-client");
         return;
     }
+#else
+    char tmp[6];
+
+    /* build "x-add-client name,<version>,screenX,screenY,worldX,worldY":
+     * the legacy form, identical to bwc_build_add_client_csv() with no caps.
+     * The name is at most 8 characters, so this fits well inside 64 bytes. */
+    memset((char *)app_data, 0, APP_DATA_SIZE);
+    strcat((char *)app_data, name);
+    strcat((char *)app_data, ",");
+    itoa(BWC_REGISTRATION_VERSION, tmp, 10); strcat((char *)app_data, tmp);
+    strcat((char *)app_data, ",");
+    itoa(REG_SCREEN_WIDTH,  tmp, 10); strcat((char *)app_data, tmp);
+    strcat((char *)app_data, ",");
+    itoa(REG_SCREEN_HEIGHT, tmp, 10); strcat((char *)app_data, tmp);
+    strcat((char *)app_data, ",");
+    itoa(REG_WORLD_WIDTH,   tmp, 10); strcat((char *)app_data, tmp);
+    strcat((char *)app_data, ",");
+    itoa(REG_WORLD_HEIGHT,  tmp, 10); strcat((char *)app_data, tmp);
+#endif
 
     create_command("x-add-client");
     append_command((char *)app_data);

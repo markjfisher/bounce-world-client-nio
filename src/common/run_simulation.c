@@ -115,7 +115,9 @@ void run_simulation(void)
         }
 
         handle_kb();
+#if BWC_FEATURE_FETCH_PACING
         pace_client_fetch();
+#endif
     }
 
     /* Either errored or user quit - deregister from the server */

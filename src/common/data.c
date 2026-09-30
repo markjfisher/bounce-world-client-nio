@@ -56,7 +56,9 @@ uint8_t  world_is_wrapped;
 bool    is_running_sim          = true;
 uint8_t current_step            = 0xff;
 uint8_t info_display_count      = 0;
+#if BWC_FEATURE_FETCH_PACING
 uint16_t fetch_interval_ms      = 100;
+#endif
 bool    is_darkmode             = true;
 bool    is_showing_info         = false;
 bool    is_showing_clients      = false;
