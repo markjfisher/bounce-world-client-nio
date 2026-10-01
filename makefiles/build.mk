@@ -3,8 +3,10 @@ SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := all
 
 SRCDIR   := src
-BUILD_DIR := build
-OBJDIR   := obj
+BUILD_DIR ?= build
+OBJDIR   ?= obj
+AMIGA_PROFILE ?=
+AMIGA_CRT ?= clib2
 
 # Disk image output directory (per-target to support future atari .atr etc.)
 DISK_IMAGE_DIR := disk-images/$(CURRENT_TARGET)
@@ -20,6 +22,12 @@ CURRENT_PLATFORM = $(CURRENT_PLATFORM_$(CURRENT_TARGET))
 
 ifeq ($(CURRENT_PLATFORM),)
 $(error Unknown target: $(CURRENT_TARGET). Supported: atari bbc linux msdos amiga)
+endif
+
+ifeq ($(CURRENT_TARGET),amiga)
+ifeq ($(AMIGA_PROFILE),)
+$(error Amiga builds require a named AMIGA_PROFILE; use `make amiga`)
+endif
 endif
 
 # fujinet-nio-lib base directory (required; relative to project root or absolute)
@@ -113,7 +121,7 @@ CFLAGS_atari_common := -Osir
 CFLAGS_bbc_common   := -Osir
 CFLAGS_linux_common := -Wall -Wextra -O2 -std=c99
 CFLAGS_msdos_common := -0 -bt=dos -os -ms -s -q
-CFLAGS_amiga_common := -Wall -Wextra -O2 -std=c99 -mcpu=68000 -msoft-float -mcrt=clib2
+CFLAGS_amiga_common := -Wall -Wextra -O2 -std=c99 -mcpu=68000 -msoft-float -mcrt=$(AMIGA_CRT)
 CFLAGS += $(CFLAGS_$(CURRENT_TARGET)_common)
 CFLAGS += -I$(SRCDIR)/include
 CFLAGS += -I$(SRCDIR)/$(CURRENT_PLATFORM)
@@ -140,7 +148,7 @@ LDFLAGS_atari := -C cfg/atari.cfg
 LDFLAGS_bbc   := -C cfg/bbc.cfg
 LDFLAGS_linux :=
 LDFLAGS_msdos := -q -0 -bt=dos -ms
-LDFLAGS_amiga := -mcpu=68000 -msoft-float -mcrt=clib2 -lamiga
+LDFLAGS_amiga := -mcpu=68000 -msoft-float -mcrt=$(AMIGA_CRT) -lamiga
 LDFLAGS = $(LDFLAGS_$(CURRENT_TARGET))
 
 LIBS  = $(NIO_LIB_FILE)

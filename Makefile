@@ -9,7 +9,12 @@
 # Other targets: bbc, linux, msdos, amiga, disk-bbc
 
 TARGETS = atari bbc linux msdos amiga
+NON_AMIGA_TARGETS = atari bbc linux msdos
 PROGRAM := bwcn
+AMIGA_PROFILES := wb31 wb32
+AMIGA_PROFILE ?=
+AMIGA_CRT_wb31 := clib2
+AMIGA_CRT_wb32 := clib2
 
 .PHONY: all clean $(TARGETS) disk disk-% test-host-coords test-host-vectors test-host-csv test-host-interpolation test-host-pacing test-host
 
@@ -18,11 +23,32 @@ all:
 		echo "-------------------------------------"; \
 		echo "Building $$target"; \
 		echo "-------------------------------------"; \
-		$(MAKE) --no-print-directory -f makefiles/build.mk CURRENT_TARGET=$$target PROGRAM=$(PROGRAM); \
+		$(MAKE) --no-print-directory $$target PROGRAM=$(PROGRAM); \
 	done
 
-$(TARGETS):
+$(NON_AMIGA_TARGETS):
 	$(MAKE) --no-print-directory -f makefiles/build.mk CURRENT_TARGET=$@ PROGRAM=$(PROGRAM)
+
+# Amiga is only released for the explicitly supported Workbench profiles.
+# Keeping both the executable and objects profile-qualified prevents a
+# Workbench 3.x clib2 executable being mistaken for a future WB1.3 build.
+amiga:
+ifeq ($(AMIGA_PROFILE),)
+	@for profile in $(AMIGA_PROFILES); do \
+		$(MAKE) --no-print-directory -f makefiles/build.mk \
+			CURRENT_TARGET=amiga PROGRAM=$(PROGRAM) \
+			AMIGA_PROFILE=$$profile AMIGA_CRT=clib2 \
+			BUILD_DIR=build/amiga/$$profile OBJDIR=obj/amiga/$$profile || exit $$?; \
+	done
+else
+ifeq ($(filter $(AMIGA_PROFILE),$(AMIGA_PROFILES)),)
+$(error Unsupported Amiga profile '$(AMIGA_PROFILE)'; supported profiles: $(AMIGA_PROFILES))
+endif
+	$(MAKE) --no-print-directory -f makefiles/build.mk \
+		CURRENT_TARGET=amiga PROGRAM=$(PROGRAM) \
+		AMIGA_PROFILE=$(AMIGA_PROFILE) AMIGA_CRT=$(AMIGA_CRT_$(AMIGA_PROFILE)) \
+		BUILD_DIR=build/amiga/$(AMIGA_PROFILE) OBJDIR=obj/amiga/$(AMIGA_PROFILE)
+endif
 
 clean:
 	@for d in build obj disk-images; do \

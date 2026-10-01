@@ -84,7 +84,8 @@ make clean linux
 ```
 
 Output binaries are written to `build/`, named by target (e.g. `build/bwcn.bbc`,
-`build/bwcn.linux`, `build/bwcn.msdos.exe`).
+`build/bwcn.linux`, `build/bwcn.msdos.exe`). Amiga outputs are instead always
+profile-qualified under `build/amiga/<profile>/`.
 
 ## BBC SSD disk image
 
@@ -176,10 +177,15 @@ workspace `scripts/env.sh`):
 
 ```sh
 export FUJINET_NIO_LIB=$HOME/dev/nio/repos/fujinet-nio-lib
-make amiga
+make amiga                         # builds wb31 and wb32
+make amiga AMIGA_PROFILE=wb31      # one supported profile
 ```
 
-Output: `build/bwcn.amiga`.
+Outputs: `build/amiga/wb31/bwcn.amiga` and `build/amiga/wb32/bwcn.amiga`.
+
+Workbench 1.3 is not a supported Bouncy World target yet. It is intentionally
+not emitted by the aggregate build: a future port must establish its API/CRT
+requirements and receive Amiberry coverage before adding `wb13`.
 
 The Amiga client talks to FujiNet NIO through the broker device
 (`fujinet-nio.device`), so that device must be loaded in the guest before the
