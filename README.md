@@ -73,7 +73,7 @@ make linux
 Build just the MS-DOS version:
 
 ```sh
-source ~/.local/bin/add_watcom.sh
+# you must ensure watcom is on your path
 make msdos
 ```
 
@@ -138,7 +138,7 @@ The MS-DOS build talks to `fujinet-nio` through the MS-DOS COM serial channel in
 `fujinet-nio-lib`. Build it with Open Watcom available:
 
 ```sh
-source ~/.local/bin/add_watcom.sh
+# you must ensure watcom is on your path
 export FUJINET_NIO_LIB=$HOME/dev/nio/repos/fujinet-nio-lib
 make msdos
 ```
@@ -156,7 +156,7 @@ entry point, so the driver remains the single owner of COM1.
 For direct serial testing without `FUJINET.SYS`, build with:
 
 ```sh
-# ensure watcom is on your path
+# you must ensure watcom is on your path
 export FUJINET_NIO_LIB=$HOME/path/to/fujinet-nio-lib
 make msdos MSDOS_NIO_BACKEND=serial
 ```
