@@ -102,8 +102,18 @@ This builds the BBC binary (if needed), then runs
 `disk-images/bbc/bwcn.ssd`.  The binary is placed on the disk with a DFS leaf
 name of `BWCN`, load address `&001900`, and execution address `&001900`.
 
-The disk image path is target-scoped so the architecture can be extended for
-future platform disk formats (e.g. Atari `.atr` images).
+## Atari ATR boot disk
+
+With `dir2atr` available, build a bootable Atari disk with:
+
+```sh
+make disk-atari
+```
+
+This builds the Atari executable as needed and creates `disk-images/atari/bwcn.atr`.
+The disk boots the client directly using PicoBoot; it does not require DOS.
+On an XL/XE, hold OPTION while booting to disable BASIC. The client then prompts
+for the server address and player name.
 
 ## Running on Linux
 

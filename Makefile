@@ -4,6 +4,7 @@
 #   export FUJINET_NIO_LIB=/path/to/fujinet-nio-lib
 #   make           - Build all targets
 #   make atari     - Build for Atari
+#   make disk-atari - Build a bootable Atari ATR
 #   make disk-msdos - Build an MS-DOS FAT image
 #
 # Other targets: bbc, linux, msdos, amiga, disk-bbc
