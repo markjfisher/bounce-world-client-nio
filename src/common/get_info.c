@@ -17,7 +17,7 @@
 #include "sound.h"
 #ifdef __ATARI__
 #include <atari.h>
-#include "shapes.h"
+#include "title.h"
 #endif
 
 /* Maximum lengths for user-entered strings */
@@ -69,21 +69,7 @@ void show_header(void)
     clrscr();
     init_sound();
 #ifdef __ATARI__
-    OS.color1 = 0x0e;
-    OS.color2 = 0x92;
-    OS.color4 = 0x00;
-    cputsxy(1, 0, ".     *         .       *        .");
-    cputsxy(2, 1, "    .       *       .      .      *");
-    revers(1);
-    cputsxy(7, 3, " B O U N C Y   W O R L D ");
-    cputsxy(7, 4, "    *  SPACE CONTROL  *   ");
-    revers(0);
-    shapes_load_embedded();
-    display_shape_data(0, 1, 3);
-    display_shape_data(1, 34, 3);
-    cputsxy(9, 6, "o    +     O     *     o");
-    cputsxy(3, 8, "  MARK FISHER      FUJINET NIO");
-    chlinexy(2, 10, 36);
+    title_draw();
 #else
     chlinexy(hxp - 2, yps - 1, 36);
     revers(1);
@@ -100,16 +86,24 @@ void show_header(void)
 
 void show_server(char *s)
 {
+#ifdef __ATARI__
+    title_server(s);
+#else
     cputsxy(txp, yps + 10, "Bounce Server URL:");
     cputsxy(txp, yps + 11, "> ");
     cputsxy(txp + 2, yps + 11, s);
+#endif
 }
 
 void show_name(char *s)
 {
+#ifdef __ATARI__
+    title_name(s);
+#else
     cputsxy(txp, yps + 13, "Your name (max 8):");
     cputsxy(txp, yps + 14, "> ");
     cputsxy(txp + 2, yps + 14, s);
+#endif
 }
 
 #if BWC_FEATURE_FETCH_PACING
@@ -129,7 +123,9 @@ static void cput_rev1(char *s)
 
 static void show_menu(void)
 {
-#if BWC_FEATURE_FETCH_PACING
+#if defined(__ATARI__)
+    cursor(0);
+#elif BWC_FEATURE_FETCH_PACING
     cputsxy(txp + 2, 21, "Change ");
     cput_rev1("Server ");
     cputs(" ");
@@ -199,8 +195,7 @@ static void get_info_changes(void)
         c = 0;
         while (kbhit() == 0) {
 #ifdef __ATARI__
-            static const uint8_t space_colours[] = {0x92, 0x82, 0x42, 0xc2};
-            OS.color2 = space_colours[(*(volatile uint8_t *)0x14 >> 6) & 3];
+            title_animate();
 #endif
         }
         c = cgetc();
@@ -208,23 +203,39 @@ static void get_info_changes(void)
         switch (c) {
             case 'S':
             case 's':
+#ifdef __ATARI__
+                title_edit(endpoint_input, ENDPOINT_LEN, 13);
+                title_fx_pause();
+#else
                 get_input(txp + 2, yps + 11, ENDPOINT_LEN, endpoint_input);
+#endif
                 if (appstore_write_setting(endpoint_input, APPSTORE_KEY_ENDPOINT)) {
                     clear_store_error();
                 } else {
                     show_store_error();
                 }
+#ifdef __ATARI__
+                title_fx_resume();
+#endif
                 show_server(endpoint_input);
                 break;
 
             case 'N':
             case 'n':
+#ifdef __ATARI__
+                title_edit(name, NAME_LEN, 16);
+                title_fx_pause();
+#else
                 get_input(txp + 2, yps + 14, NAME_LEN, name);
+#endif
                 if (appstore_write_setting(name, APPSTORE_KEY_NAME)) {
                     clear_store_error();
                 } else {
                     show_store_error();
                 }
+#ifdef __ATARI__
+                title_fx_resume();
+#endif
                 show_name(name);
                 break;
 
@@ -287,7 +298,13 @@ void get_info(void)
 #endif
     show_menu();
 
+#ifdef __ATARI__
+    title_enable();
+#endif
     get_info_changes();
+#ifdef __ATARI__
+    title_disable();
+#endif
     clear_cursor();
 
     /* Build server_url: prepend "tcp://" scheme if not already present */

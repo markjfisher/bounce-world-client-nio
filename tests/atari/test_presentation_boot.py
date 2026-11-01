@@ -72,9 +72,13 @@ class PresentationBootTest(unittest.TestCase):
                         time.sleep(.2)
                     self.fail(f'{text!r} not on screen:\n' + '\n'.join(rows))
 
-                wait('Press a key to continue')
+                wait('LAUNCH WORLD')
                 time.sleep(1)
                 screenshot('title.png')
+                before = atari_ui.read_os_screen(view.bridge)[:10]
+                time.sleep(.6)
+                after = atari_ui.read_os_screen(view.bridge)[:10]
+                self.assertNotEqual(before, after, 'title animation did not advance')
                 view.key('S')
                 view.type(f'127.0.0.1:{port}')
                 view.key('RETURN')
@@ -93,8 +97,8 @@ class PresentationBootTest(unittest.TestCase):
                     self.assertLess(time.monotonic(), until, 'no simulation requests')
                     time.sleep(.2)
                 view.key('Q')
-                wait('SPACE CONTROL', 40)
-                wait('Press a key to continue', 40)
+                wait('CONNECT TO THE BOUNCY', 40)
+                wait('LAUNCH WORLD', 40)
                 time.sleep(1)
                 screenshot('restart.png')
                 self.assertTrue(any(c.startswith('close ') for c in commands), commands)
@@ -106,7 +110,7 @@ class PresentationBootTest(unittest.TestCase):
                     self.assertLess(time.monotonic(), until, 'second registration missing')
                     time.sleep(.2)
                 view.key('Q')
-                wait('SPACE CONTROL', 40)
+                wait('CONNECT TO THE BOUNCY', 40)
 
             try:
                 atari_shot_netsio.boot(REPO / 'disk-images/atari/bwcn.atr', run, out=tmp)
