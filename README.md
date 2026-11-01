@@ -115,6 +115,15 @@ The disk boots the client directly using PicoBoot; it does not require DOS.
 On an XL/XE, hold OPTION while booting to disable BASIC. The client then prompts
 for the server address and player name.
 
+On a detected compatible U1MB/Incognito PBI, the client saves the FujiNet
+HSIO index, switches it off and clears the PBI speed caches before enabling
+the game display interrupts. On normal exit it disables those interrupts and
+restores the saved index and clears the caches again. An Atari reset or power
+loss cannot run this cleanup; if necessary, restore the index using the
+FujiNet console. Without a compatible PBI, the client does not change the
+FujiNet speed; users of another high-speed SIO driver may need to turn HSIO
+off themselves.
+
 ## Running on Linux
 
 The Linux build talks to `fujinet-nio` through a POSIX serial or PTY endpoint exposed by the device/service. Set `FN_PORT` to the path of that port, then run the built client:

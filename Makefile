@@ -101,3 +101,13 @@ test-host-pacing:
 	build/test_fetch_pacing.host
 
 test-host: test-host-coords test-host-vectors test-host-csv test-host-interpolation test-host-pacing
+
+# Exercise the Atari speed transition with a fake FujiNet and PBI.
+test-host-atari-sio:
+	@mkdir -p build
+	gcc -Wall -Wextra -Werror -std=c99 -D__ATARI__ -Isrc/atari \
+	  -I$(FUJINET_NIO_LIB)/include src/atari/sio_mode.c \
+	  tests/host/test_atari_sio_mode.c -o build/test_atari_sio_mode.host
+	build/test_atari_sio_mode.host
+
+test-host: test-host-atari-sio

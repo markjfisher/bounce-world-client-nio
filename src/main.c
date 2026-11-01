@@ -24,6 +24,17 @@
 #include "shapes_preview.h"
 #include "shutdown.h"
 #include "world.h"
+#ifdef __ATARI__
+#include <atari.h>
+#include "app_errors.h"
+#include "sio_mode.h"
+
+static void restore_sio_on_exit(void)
+{
+    ANTIC.nmien = 0x40; /* Never restore HSIO while our DLIs are active. */
+    (void)bwc_restore_sio();
+}
+#endif
 
 int main(void)
 {
@@ -31,6 +42,11 @@ int main(void)
     clrscr();
 
     connect_service();
+#ifdef __ATARI__
+    atexit(restore_sio_on_exit);
+    err = bwc_standard_sio();
+    if (err != FN_OK) handle_err("set standard SIO");
+#endif
     send_client_data();
     show_shapes_preview();
     get_world_state();
