@@ -242,7 +242,7 @@ else ifeq ($(CURRENT_TARGET),msdos)
 $(BUILD_DIR)/$(PROGRAM_TGT): $(OBJECTS) $(NIO_LIB_FILE) | $(BUILD_DIR)
 	$(LD) $(LDFLAGS) -fe=$@ $(OBJECTS) $(LIBS)
 else
-$(BUILD_DIR)/$(PROGRAM_TGT): $(OBJECTS) $(NIO_LIB_FILE) | $(BUILD_DIR)
+$(BUILD_DIR)/$(PROGRAM_TGT): $(OBJECTS) $(NIO_LIB_FILE) $(if $(filter atari,$(CURRENT_TARGET)),cfg/atari.cfg) | $(BUILD_DIR)
 	$(CC) -t $(CURRENT_TARGET) $(LDFLAGS) --mapfile $@.map -Ln $@.lbl -o $@ $(OBJECTS) $(LIBS)
 endif
 

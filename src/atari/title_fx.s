@@ -53,7 +53,7 @@ phase: .res 1
 .proc title_vbi
         lda #0
         sta phase
-        lda #$02
+        lda #$2a
         sta COLPF2
         jmp SYSVBV
 .endproc
@@ -66,7 +66,7 @@ phase: .res 1
         sta WSYNC
         sta COLPF2
         inx
-        cpx #7
+        cpx #6
         bcc :+
         ldx #0
 :       stx phase
@@ -76,5 +76,5 @@ phase: .res 1
         rti
 .endproc
 .rodata
-; Colours following rows 4, 9, 11, 14, 17, 20, 23.
-colours: .byte $82, $02, $b4, $94, $02, $42, $02
+; After the bitmap, then text rows 11, 14, 17, 20 and 23.
+colours: .byte $02, $b4, $94, $02, $42, $02

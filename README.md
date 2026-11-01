@@ -114,6 +114,11 @@ This builds the Atari executable as needed and creates `disk-images/atari/bwcn.a
 The disk uses PicoBoot and shows an Asteroids-inspired loading screen while the client loads; it does not require DOS.
 On an XL/XE, hold OPTION while booting to disable BASIC. The client then prompts
 for the server address and player name. Press Q in the world to disconnect and return to the title screen.
+The animated object gallery sends a keepalive about every 20 seconds (PAL),
+or 17 seconds (NTSC). Press any key to launch the world.
+
+The Atari title bitmap is checked in; regenerating it with
+`python3 scripts/generate_atari_title.py` requires Pillow and DejaVu Sans Bold.
 
 On a detected compatible U1MB/Incognito PBI, the client saves the FujiNet
 HSIO index, switches it off and clears the PBI speed caches before enabling

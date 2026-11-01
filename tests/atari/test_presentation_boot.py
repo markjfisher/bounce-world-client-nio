@@ -75,10 +75,14 @@ class PresentationBootTest(unittest.TestCase):
                 wait('LAUNCH WORLD')
                 time.sleep(1)
                 screenshot('title.png')
-                before = atari_ui.read_os_screen(view.bridge)[:10]
-                time.sleep(.6)
-                after = atari_ui.read_os_screen(view.bridge)[:10]
-                self.assertNotEqual(before, after, 'title animation did not advance')
+                title_frames = set()
+                for index in range(8):
+                    time.sleep(.12)
+                    frame = view.screenshot()
+                    title_frames.add(frame)
+                    if screen_dir:
+                        (Path(screen_dir) / f'title-{index:02}.png').write_bytes(frame)
+                self.assertGreater(len(title_frames), 1, 'title animation did not advance')
                 view.key('S')
                 view.type(f'127.0.0.1:{port}')
                 view.key('RETURN')
@@ -91,6 +95,25 @@ class PresentationBootTest(unittest.TestCase):
                 wait('BOUNCY WORLD / OBJECTS')
                 time.sleep(1)
                 screenshot('shapes.png')
+                frames = {view.screenshot()}
+                fetches = sum(c.startswith('x-w ') for c in commands)
+                for index in range(8):
+                    time.sleep(.15)
+                    frame = view.screenshot()
+                    frames.add(frame)
+                    if screen_dir:
+                        (Path(screen_dir) / f'objects-{index:02}.png').write_bytes(frame)
+                self.assertGreater(len(frames), 1, 'objects did not animate')
+                self.assertLessEqual(sum(c.startswith('x-w ') for c in commands) - fetches, 1,
+                                     'preview is polling continuously instead of animating locally')
+                # Advance RTCLOK by 1024 frames: an overdue keepalive must be sent.
+                fetches = sum(c.startswith('x-w ') for c in commands)
+                mid = view.bridge.peek(0x13, 1)[0]
+                view.bridge.poke(0x13, (mid + 4) & 0xff)
+                until = time.monotonic() + 15
+                while sum(c.startswith('x-w ') for c in commands) == fetches:
+                    self.assertLess(time.monotonic(), until, 'preview keepalive missing')
+                    time.sleep(.2)
                 view.key('SPACE')
                 until = time.monotonic() + 30
                 while not any(c.startswith('x-w ') for c in commands):
@@ -113,7 +136,7 @@ class PresentationBootTest(unittest.TestCase):
                 wait('CONNECT TO THE BOUNCY', 40)
 
             try:
-                atari_shot_netsio.boot(REPO / 'disk-images/atari/bwcn.atr', run, out=tmp)
+                atari_shot_netsio.boot(REPO / 'disk-images/atari/bwcn.atr', run, out=tmp, ram_kb=64)
             finally:
                 server.close()
 
