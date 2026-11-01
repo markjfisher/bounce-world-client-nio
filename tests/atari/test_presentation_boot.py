@@ -72,7 +72,7 @@ class PresentationBootTest(unittest.TestCase):
                         time.sleep(.2)
                     self.fail(f'{text!r} not on screen:\n' + '\n'.join(rows))
 
-                wait('LAUNCH WORLD')
+                wait('Launch world')
                 time.sleep(1)
                 screenshot('title.png')
                 title_frames = set()
@@ -92,7 +92,7 @@ class PresentationBootTest(unittest.TestCase):
                 view.key('RETURN')
                 time.sleep(2)
                 view.key('SPACE')
-                wait('BOUNCY WORLD / OBJECTS')
+                wait('Bouncy World / Objects')
                 time.sleep(1)
                 screenshot('shapes.png')
                 frames = {view.screenshot()}
@@ -120,20 +120,20 @@ class PresentationBootTest(unittest.TestCase):
                     self.assertLess(time.monotonic(), until, 'no simulation requests')
                     time.sleep(.2)
                 view.key('Q')
-                wait('CONNECT TO THE BOUNCY', 40)
-                wait('LAUNCH WORLD', 40)
+                wait('Choose a destination', 40)
+                wait('Launch world', 40)
                 time.sleep(1)
                 screenshot('restart.png')
                 self.assertTrue(any(c.startswith('close ') for c in commands), commands)
                 view.key('SPACE')
-                wait('BOUNCY WORLD / OBJECTS')
+                wait('Bouncy World / Objects')
                 view.key('SPACE')
                 until = time.monotonic() + 30
                 while sum(c.startswith('x-add-client') for c in commands) < 2:
                     self.assertLess(time.monotonic(), until, 'second registration missing')
                     time.sleep(.2)
                 view.key('Q')
-                wait('CONNECT TO THE BOUNCY', 40)
+                wait('Choose a destination', 40)
 
             try:
                 atari_shot_netsio.boot(REPO / 'disk-images/atari/bwcn.atr', run, out=tmp, ram_kb=64)

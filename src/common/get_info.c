@@ -204,7 +204,7 @@ static void get_info_changes(void)
             case 'S':
             case 's':
 #ifdef __ATARI__
-                title_edit(endpoint_input, ENDPOINT_LEN, 13);
+                title_edit(endpoint_input, ENDPOINT_LEN, 11);
                 title_fx_pause();
 #else
                 get_input(txp + 2, yps + 11, ENDPOINT_LEN, endpoint_input);
@@ -223,7 +223,7 @@ static void get_info_changes(void)
             case 'N':
             case 'n':
 #ifdef __ATARI__
-                title_edit(name, NAME_LEN, 16);
+                title_edit(name, NAME_LEN, 15);
                 title_fx_pause();
 #else
                 get_input(txp + 2, yps + 14, NAME_LEN, name);
@@ -258,6 +258,9 @@ static void get_info_changes(void)
 
             default:
                 /* Only proceed once both fields are filled */
+#ifdef __ATARI__
+                if (c != CH_ENTER && c != '\n' && c != ' ') break;
+#endif
                 if (strlen(endpoint_input) > 0 && strlen(name) > 0) {
                     return;
                 }

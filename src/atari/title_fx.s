@@ -55,6 +55,19 @@ phase: .res 1
         sta phase
         lda #$2a
         sta COLPF2
+        ; Slow luminance waves through the two field interiors. The DLI
+        ; changes colours at WSYNC so every band begins on the same line.
+        lda RTCLOK+2
+        lsr a
+        lsr a
+        lsr a
+        lsr a
+        and #7
+        tax
+        lda blue_wave,x
+        sta colours+2
+        lda violet_wave,x
+        sta colours+6
         jmp SYSVBV
 .endproc
 .proc title_dli
@@ -66,7 +79,7 @@ phase: .res 1
         sta WSYNC
         sta COLPF2
         inx
-        cpx #6
+        cpx #12
         bcc :+
         ldx #0
 :       stx phase
@@ -75,6 +88,9 @@ phase: .res 1
         pla
         rti
 .endproc
+.data
+; Following the bitmap and text rows 9-16, 19, 21 and 23.
+colours: .byte $02, $82, $84, $82, $02, $42, $44, $42, $02, $62, $02, $02
 .rodata
-; After the bitmap, then text rows 11, 14, 17, 20 and 23.
-colours: .byte $02, $b4, $94, $02, $42, $02
+blue_wave:   .byte $82, $84, $86, $88, $86, $84, $82, $80
+violet_wave: .byte $42, $44, $46, $48, $46, $44, $42, $40

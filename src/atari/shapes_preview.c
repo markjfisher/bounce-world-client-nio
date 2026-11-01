@@ -41,25 +41,41 @@ static uint8_t screen_code(uint8_t ch)
     return ch | inverse;
 }
 
-/* Slide each object down inside its own cell, so settled neighbours survive. */
-static void draw_arrival(uint8_t index, uint8_t shift)
+/* Save-under lets an arriving object cross the settled ones without erasing them. */
+static uint8_t saved[25];
+static void sprite(uint8_t index, uint8_t x, uint8_t restore)
 {
     ShapeRecord *shape = &shapes[index];
-    uint8_t row, col, width = shape->shape_width;
-    uint8_t x = (uint8_t)((index % PREVIEW_COLS) * PREVIEW_COL_SP + 1);
+    uint8_t row, col, width = shape->shape_width, k = 0;
     uint8_t y = (uint8_t)((index / PREVIEW_COLS) * PREVIEW_ROW_SP + PREVIEW_ORIGIN_Y);
     uint8_t *screen = *(uint8_t **)0x58;
     for (row = 0; row < width; ++row) {
-        uint8_t *dest = screen + (uint16_t)(y + row) * 40 + x;
-        for (col = 0; col < width; ++col) {
-            dest[col] = row < shift ? 0 : screen_code(shape->shape_data[(row - shift) * width + col]);
+        uint8_t *line = screen + (uint16_t)(y + row) * 40;
+        for (col = 0; col < width; ++col, ++k) {
+            uint8_t pos = x + col;
+            uint8_t ch;
+            if (pos >= 40) continue;
+            if (restore) { line[pos] = saved[k]; continue; }
+            saved[k] = line[pos];
+            ch = screen_code(shape->shape_data[k]);
+            if (ch) line[pos] = ch;
         }
+    }
+}
+static void clear_objects(void)
+{
+    uint8_t row;
+    uint8_t *screen = *(uint8_t **)0x58;
+    for (row = 3; row < 20; ++row) {
+        uint8_t col;
+        uint8_t *line = screen + (uint16_t)row * 40;
+        for (col = 0; col < 40; ++col) line[col] = 0;
     }
 }
 
 void show_shapes_preview(void)
 {
-    uint8_t i, shift;
+    uint8_t i, x, target, frame;
     shapes_load_embedded();
     clrscr();
     OS.color1 = 0x0e;
@@ -67,34 +83,28 @@ void show_shapes_preview(void)
     OS.color4 = 0x00;
     cputsxy(0, 1, " .      +      .     +        .      +");
     revers(1);
-    cputsxy(6, 0, "  BOUNCY WORLD / OBJECTS  ");
+    cputsxy(6, 0, "  Bouncy World / Objects  ");
     revers(0);
-    cputsxy(7, 21, "OBJECTS ENTERING ORBIT");
+    cputsxy(8, 21, "Incoming objects");
     revers(1);
-    cputsxy(7, 23, " PRESS ANY KEY TO LAUNCH ");
+    cputsxy(8, 23, " Any key: launch world ");
     revers(0);
     last_ping = ticks();
 
-    for (i = 0; i < shape_count && !kbhit(); ++i) {
-        shift = shapes[i].shape_width;
-        do {
-            --shift;
-            draw_arrival(i, shift);
-            preview_frame();
-            preview_frame();
-        } while (shift && !kbhit());
-    }
-    /* Keep a gentle wave moving through the settled objects. */
-    i = 0;
     while (!kbhit()) {
-        if (shapes[i].shape_width > 2) {
-            uint8_t frame;
-            draw_arrival(i, 1);
-            for (frame = 0; frame < 4 && !kbhit(); ++frame) preview_frame();
-            draw_arrival(i, 0);
-            for (frame = 0; frame < 4 && !kbhit(); ++frame) preview_frame();
+        clear_objects();
+        for (i = 0; i < shape_count && !kbhit(); ++i) {
+            target = (uint8_t)((i % PREVIEW_COLS) * PREVIEW_COL_SP + 1);
+            x = 40;
+            for (;;) {
+                sprite(i, x, 0);
+                preview_frame();
+                if (kbhit() || x == target) break;
+                sprite(i, x, 1);
+                x = (x - target > 2) ? x - 2 : target;
+            }
         }
-        if (++i == shape_count) i = 0;
+        for (frame = 0; frame < 100 && !kbhit(); ++frame) preview_frame();
     }
     cgetc();
     clrscr();
