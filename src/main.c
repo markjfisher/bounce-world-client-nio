@@ -29,6 +29,16 @@
 #include "app_errors.h"
 #include "sio_mode.h"
 
+static uint8_t game_screen_active;
+
+static void cleanup_atari_screen(void)
+{
+    if (game_screen_active) {
+        cleanup_client();
+        game_screen_active = 0;
+    }
+}
+
 static void restore_sio_on_exit(void)
 {
     ANTIC.nmien = 0x40; /* Never restore HSIO while our DLIs are active. */
@@ -38,28 +48,34 @@ static void restore_sio_on_exit(void)
 
 int main(void)
 {
+#ifdef __ATARI__
+    atexit(restore_sio_on_exit);
+    atexit(cleanup_atari_screen);
+    for (;;) {
+#endif
     get_info();
     clrscr();
 
     connect_service();
 #ifdef __ATARI__
-    atexit(restore_sio_on_exit);
     err = bwc_standard_sio();
     if (err != FN_OK) handle_err("set standard SIO");
 #endif
     send_client_data();
     show_shapes_preview();
     get_world_state();
-
 #ifdef __ATARI__
-    /* Restore the VBI and keyboard IRQ even if a network error exits. */
-    atexit(cleanup_client);
+    game_screen_active = 1;
 #endif
     run_simulation();
-#ifndef __ATARI__
-    cleanup_client();
-#endif
+#ifdef __ATARI__
+    cleanup_atari_screen();
+    (void)bwc_restore_sio();
     cursor(1);
-
+    }
+#else
+    cleanup_client();
+    cursor(1);
     return 0;
+#endif
 }

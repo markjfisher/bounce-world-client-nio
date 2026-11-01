@@ -1,4 +1,5 @@
 #include <conio.h>
+#include <atari.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -30,8 +31,12 @@ void show_shapes_preview(void)
     shapes_load_embedded();
 
     clrscr();
+    OS.color1 = 0x0e;
+    OS.color2 = 0x92;
+    OS.color4 = 0x00;
+    cputsxy(0, 1, " .      *      .     *        .      *");
     revers(1);
-    cputsxy(8, 0, " Bouncy World shapes ");
+    cputsxy(8, 0, " BOUNCY WORLD / OBJECTS ");
     revers(0);
     draw_preview_shapes();
     revers(1);
@@ -39,6 +44,8 @@ void show_shapes_preview(void)
     revers(0);
 
     while (kbhit() == 0) {
+        static const uint8_t space_colours[] = {0x92, 0x82, 0x42, 0xc2};
+        OS.color2 = space_colours[(*(volatile uint8_t *)0x14 >> 6) & 3];
         fetch_client_state();
         pause(20);
     }

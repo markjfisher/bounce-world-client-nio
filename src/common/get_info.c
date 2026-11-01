@@ -15,6 +15,10 @@
 #include "delay.h"
 #include "get_line.h"
 #include "sound.h"
+#ifdef __ATARI__
+#include <atari.h>
+#include "shapes.h"
+#endif
 
 /* Maximum lengths for user-entered strings */
 #define ENDPOINT_LEN 60
@@ -64,6 +68,23 @@ void show_header(void)
 {
     clrscr();
     init_sound();
+#ifdef __ATARI__
+    OS.color1 = 0x0e;
+    OS.color2 = 0x92;
+    OS.color4 = 0x00;
+    cputsxy(1, 0, ".     *         .       *        .");
+    cputsxy(2, 1, "    .       *       .      .      *");
+    revers(1);
+    cputsxy(7, 3, " B O U N C Y   W O R L D ");
+    cputsxy(7, 4, "    *  SPACE CONTROL  *   ");
+    revers(0);
+    shapes_load_embedded();
+    display_shape_data(0, 1, 3);
+    display_shape_data(1, 34, 3);
+    cputsxy(9, 6, "o    +     O     *     o");
+    cputsxy(3, 8, "  MARK FISHER      FUJINET NIO");
+    chlinexy(2, 10, 36);
+#else
     chlinexy(hxp - 2, yps - 1, 36);
     revers(1);
     cputsxy(hxp, yps + 1, "                                ");
@@ -74,6 +95,7 @@ void show_header(void)
     cputsxy(hxp, yps + 5, "            Version: 0.0.0      ");
     cputsxy(hxp + 21, yps + 5, version);
     chlinexy(hxp - 2, yps + 7, 36);
+#endif
 }
 
 void show_server(char *s)
@@ -175,7 +197,12 @@ static void get_info_changes(void)
 
     while (1) {
         c = 0;
-        while (kbhit() == 0) ;
+        while (kbhit() == 0) {
+#ifdef __ATARI__
+            static const uint8_t space_colours[] = {0x92, 0x82, 0x42, 0xc2};
+            OS.color2 = space_colours[(*(volatile uint8_t *)0x14 >> 6) & 3];
+#endif
+        }
         c = cgetc();
 
         switch (c) {

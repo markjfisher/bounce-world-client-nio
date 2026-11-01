@@ -111,9 +111,9 @@ make disk-atari
 ```
 
 This builds the Atari executable as needed and creates `disk-images/atari/bwcn.atr`.
-The disk boots the client directly using PicoBoot; it does not require DOS.
+The disk uses PicoBoot and shows an Asteroids-inspired loading screen while the client loads; it does not require DOS.
 On an XL/XE, hold OPTION while booting to disable BASIC. The client then prompts
-for the server address and player name.
+for the server address and player name. Press Q in the world to disconnect and return to the title screen.
 
 On a detected compatible U1MB/Incognito PBI, the client saves the FujiNet
 HSIO index, switches it off and clears the PBI speed caches before enabling
