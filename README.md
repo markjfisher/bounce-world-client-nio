@@ -124,6 +124,11 @@ FujiNet console. Without a compatible PBI, the client does not change the
 FujiNet speed; users of another high-speed SIO driver may need to turn HSIO
 off themselves.
 
+The Atari client also samples POKEY's keyboard state during its video
+interrupt. If a held key has not produced an OS keyboard interrupt after
+two frames, the client supplies its scan code to the OS keyboard latch.
+The normal keyboard interrupt handler remains installed in the chain.
+
 ## Running on Linux
 
 The Linux build talks to `fujinet-nio` through a POSIX serial or PTY endpoint exposed by the device/service. Set `FN_PORT` to the path of that port, then run the built client:

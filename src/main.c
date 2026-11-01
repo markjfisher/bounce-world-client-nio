@@ -51,8 +51,14 @@ int main(void)
     show_shapes_preview();
     get_world_state();
 
+#ifdef __ATARI__
+    /* Restore the VBI and keyboard IRQ even if a network error exits. */
+    atexit(cleanup_client);
+#endif
     run_simulation();
+#ifndef __ATARI__
     cleanup_client();
+#endif
     cursor(1);
 
     return 0;

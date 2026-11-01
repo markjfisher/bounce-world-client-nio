@@ -3,6 +3,7 @@
 
         .export    vbi_main
 
+        .import    _key_fallback_init, _key_fallback_done, key_fallback_poll
         .import    _debug
         .import    _txt_c3
 
@@ -24,6 +25,7 @@
         .include   "atari.inc"
 
 .proc _init_vbi
+        jsr     _key_fallback_init
         ; save the old VBI
         lda     VVBLKI
         sta     old_vbi
@@ -41,7 +43,8 @@
         ldy     old_vbi
         ldx     old_vbi+1
         lda     #$06
-        jmp     SETVBV
+        jsr     SETVBV
+        jmp     _key_fallback_done
 .endproc
 
 
@@ -52,6 +55,7 @@
 ; A DLI will change the colour below.
 
 .proc vbi_main
+        jsr     key_fallback_poll
         lda     #$00
         sta     COLPF2
         sta     current_section

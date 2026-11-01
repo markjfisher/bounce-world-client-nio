@@ -1,0 +1,15 @@
+memory load atari "${BINARY_PATH}"
+symbols load "${SYMBOLS_PATH}"
+registers flush
+run $init_harness until (CP = $end_init_harness OR cycle_count > 250000)
+assert CP = $end_init_harness $$keyboard test completed$$
+assert $_test_result + 0 = 0xff $$first sample waits$$
+assert $_test_result + 1 = 13 $$missed I IRQ supplies raw key$$
+assert $_test_result + 2 = 0xff $$held key not injected again$$
+assert $_test_result + 3 = 0xff $$normal IRQ suppresses fallback$$
+assert $_test_result + 4 = 1 $$normal IRQ chains to OS$$
+assert $_test_result + 5 = 0x24 $$unread key is preserved$$
+assert $_test_result + 6 = 0xff $$HELP is not injected$$
+assert $_test_result + 7 = 0xff $$control shift ignored$$
+assert $_test_result + 8 = 24 $$new press is handled$$
+assert $_test_result + 9 = 1 $$old vector restored$$

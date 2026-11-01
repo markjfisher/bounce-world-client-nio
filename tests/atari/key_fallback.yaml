@@ -1,0 +1,10 @@
+name: Atari keyboard IRQ fallback
+configs:
+  - ../../../cc65-clib/tests/harness/harness.yaml
+src_files:
+  - key_fallback_test.s
+  - ../../src/atari/key_fallback.s
+ld_flags:
+  - -t
+  - none
+test_script: key_fallback_test.txt

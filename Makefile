@@ -111,3 +111,7 @@ test-host-atari-sio:
 	build/test_atari_sio_mode.host
 
 test-host: test-host-atari-sio
+
+.PHONY: test-atari-keyboard
+test-atari-keyboard:
+	soft65c02_unit -b build/tests/key-fallback -i tests/atari/key_fallback.yaml
