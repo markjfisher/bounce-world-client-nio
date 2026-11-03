@@ -129,3 +129,54 @@ object gallery, live animation, brief I/Q key presses, settings persistence and
 quit/rejoin. Increase object count while staying below the 83-object buffer limit.
 Capture sio.status and any stalls or visual/audio issues. Compare responsiveness
 with the default disk; keep it available if the stream update rate is too low.
+
+## First-row timing diagnostic
+
+Build `make disk-atari-stream-diag` and boot
+`disk-images/atari-stream-diag/bwcn.atr`. This separate variant reserves row 0
+for diagnostics; objects behind that row are obscured. The normal stream and
+packet builds do not include instrumentation. No firmware update is needed.
+
+Example:
+
+```text
+U08.8 F006 M074 W002 R004 N00 C01 P:R
+```
+
+- **U**: newly received world steps per second, averaged over windows of at least
+  two seconds of Atari video time. Duplicate server steps do not count. This is
+  an update rate, not the server's physics rate or a host wall-clock measurement.
+- **F**: duration of the last whole world fetch, from before the x-w write to
+  completion of the framed reply; excludes rendering and keyboard handling.
+- **M**: maximum F since entering the world. It keeps a brief stall visible.
+- **W / R**: total time spent inside stream write/read calls for that fetch.
+  A call includes both S/T exchanges and any internal library carrier retries.
+- **N**: Busy/NotReady replies during that fetch, across writes and reads.
+- **C**: actual wire read calls during that fetch. Reads satisfied from the
+  read-ahead buffer do not count; internal SIO retries are not separate C calls.
+- **P**: live phase: W write, R read, F between calls in a fetch, ! just returned
+  a nonzero status, or - completed fetch/render/keyboard. Timing/count fields
+  describe the previous completed fetch while P describes the current phase.
+
+F/M/W/R are **video ticks**: normally 20 ms PAL or about 16.7 ms NTSC. Values
+saturate on display at 999 ticks; N/C at 99. Counters reset on entering the world.
+The row does not run an interrupt handler: during a stuck SIO call P remains W
+or R, and timing fields update when it returns. This avoids changing the very
+VBI/DLI workload being investigated. Phase changes write only one character;
+full formatting happens once per loop. There is still some foreground overhead,
+so this disk is for diagnosis, not an uninstrumented throughput benchmark.
+
+How to interpret a pause:
+
+- Large R, N=0: time inside serial/read transactions, possibly internal carrier
+  retries; collect FujiNet `sio.status` to distinguish those from service delays.
+- Large N/C: repeated no-data/backpressure replies. F minus W/R includes the
+  application's three-video-tick retry pauses and other foreground work.
+- Small F but low U: fetching is completing; repeated server step IDs or work
+  outside fetching (rendering/input) could account for the low update rate.
+
+Capture the row during a pause (especially P), then immediately after recovery
+(especially M/F/W/R/N/C), with a FujiNet sio.status snapshot if possible.
+Host tests exercise rate math, clock wrap, per-call accounting and inactive
+hooks. The headless test can inject a known delay with `--response-delay-ms 400`
+to verify nonzero NotReady counters and increased fetch duration.

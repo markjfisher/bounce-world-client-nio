@@ -131,3 +131,15 @@ test-host-stream:
 	build/test_stream_network.host
 
 test-host: test-host-stream
+
+.PHONY: test-host-stream-diag
+test-host-stream-diag:
+	@mkdir -p build
+	gcc -Wall -Wextra -Werror -std=c99 -DBWC_STREAM_DIAG -DBWC_DIAG_TEST -Isrc/include -Isrc/atari src/atari/stream/diagnostic.c tests/host/test_stream_diagnostic.c -o build/test_stream_diagnostic.host
+	build/test_stream_diagnostic.host
+
+test-host: test-host-stream-diag
+
+.PHONY: disk-atari-stream-diag
+disk-atari-stream-diag:
+	$(MAKE) -f makefiles/build.mk CURRENT_TARGET=atari PROGRAM=$(PROGRAM) ATARI_NETWORK=stream ATARI_STREAM_DIAG=1 BUILD_DIR=build/atari-stream-diag OBJDIR=obj/atari-stream-diag DISK_IMAGE_DIR=disk-images/atari-stream-diag disk

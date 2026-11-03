@@ -121,7 +121,8 @@ An optional small-stream TCP backend is available with `make disk-atari-stream`.
 It produces `disk-images/atari-stream/bwcn.atr` in separate build directories,
 leaves HSIO/U1MB settings alone and retains AppStore settings. See
 [Atari small-stream mode](docs/atari-small-stream.md) for requirements, measured
-size/update-rate trade-offs, and hardware testing. The packet backend stays default.
+size/update-rate trade-offs, and hardware testing. The packet backend stays default. For first-row timing/rate diagnostics, use
+`make disk-atari-stream-diag` and `disk-images/atari-stream-diag/bwcn.atr`.
 
 The Atari title bitmap is checked in; regenerating it with
 `python3 scripts/generate_atari_title.py` requires Pillow and DejaVu Sans Bold.

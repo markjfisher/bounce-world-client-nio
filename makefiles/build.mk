@@ -96,6 +96,9 @@ ifeq ($(CURRENT_TARGET),atari)
 ifeq ($(ATARI_NETWORK),stream)
 SOURCES := $(filter-out $(SRCDIR)/atari/sio_mode.c,$(SOURCES))
 SOURCES += $(SRCDIR)/atari/stream/network.c $(SRCDIR)/atari/stream/sio_mode.c
+ifeq ($(ATARI_STREAM_DIAG),1)
+SOURCES += $(SRCDIR)/atari/stream/diagnostic.c
+endif
 else ifneq ($(filter $(ATARI_NETWORK),packet),$(ATARI_NETWORK))
 $(error ATARI_NETWORK must be packet or stream)
 endif
@@ -166,6 +169,9 @@ LIBS  = $(NIO_LIB_FILE)
 CFLAGS_atari := -DBWC_CUSTOM_CPUTC
 ifeq ($(ATARI_NETWORK),stream)
 CFLAGS_atari += -DBWC_SMALL_STREAM
+ifeq ($(ATARI_STREAM_DIAG),1)
+CFLAGS_atari += -DBWC_STREAM_DIAG
+endif
 endif
 CFLAGS_bbc   :=
 CFLAGS_linux :=

@@ -20,6 +20,9 @@
 #include "sound.h"
 #include "status.h"
 #include "world.h"
+#ifdef BWC_STREAM_DIAG
+#include "stream/diagnostic.h"
+#endif
 
 #ifdef __ATARI__
 #include "dlist.h"
@@ -84,11 +87,21 @@ void run_simulation(void)
     }
 #endif
 
+#ifdef BWC_STREAM_DIAG
+    bwc_diag_start();
+#endif
     while (is_running_sim) {
+#ifdef BWC_STREAM_DIAG
+        bwc_diag_begin();
+#endif
         n = fetch_client_state();
 
         /* Nothing received this round - re-poll */
         if (n <= 0) {
+#ifdef BWC_STREAM_DIAG
+            bwc_diag_end(0);
+            bwc_diag_refresh();
+#endif
             continue;
         }
 
@@ -100,6 +113,9 @@ void run_simulation(void)
 
         /* Only redraw when the world step has advanced */
         new_step_id = app_payload[0];
+#ifdef BWC_STREAM_DIAG
+        bwc_diag_end(new_step_id != current_step);
+#endif
         if (new_step_id != current_step) {
 #ifdef __AMIGA__
             uint32_t render_start = bwc_perf_ticks();
@@ -114,12 +130,19 @@ void run_simulation(void)
 #endif
         }
 
+#ifdef BWC_STREAM_DIAG
+        /* Rendering clears the row; restore it without affecting timing. */
+        bwc_diag_refresh();
+#endif
         handle_kb();
 #if BWC_FEATURE_FETCH_PACING
         pace_client_fetch();
 #endif
     }
 
+#ifdef BWC_STREAM_DIAG
+    bwc_diag_stop();
+#endif
     /* Either errored or user quit - deregister from the server */
 #ifdef __linux__
     bwc_latency_trace_report();
