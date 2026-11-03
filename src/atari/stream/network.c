@@ -4,7 +4,6 @@
 #include "fn_stream.h"
 #include "delay.h"
 #include "network.h"
-#include "diagnostic.h"
 static fn_stream_io_t stream;
 static uint8_t failed;
 /* Keep read-ahead independent of the library reply area: a write between
@@ -58,9 +57,7 @@ uint8_t bwc_stream_read(uint8_t *buf, uint16_t capacity, uint16_t *actual, uint8
         if (pending_flags & FN_READ_EOF) { *flags = pending_flags; return FN_OK; }
         /* Read up to 120 immediately available bytes, not "wait for 120". */
         stream.length = FN_STREAM_MAX;
-        bwc_diag_io_begin('R');
         status = result(fn_stream_read(&stream));
-        bwc_diag_io_end(status);
         if (status) return status;
         pending_at = 0;
         pending_size = stream.actual;
@@ -85,9 +82,7 @@ uint8_t bwc_stream_write(const uint8_t *buf, uint16_t length, uint16_t *actual) 
     while (*actual < length) {
         stream.length = length - *actual > FN_STREAM_MAX ? FN_STREAM_MAX : (uint8_t)(length - *actual);
         memcpy(stream.data, buf + *actual, stream.length);
-        bwc_diag_io_begin('W');
         status = result(fn_stream_write(&stream));
-        bwc_diag_io_end(status);
         if (status && status != FN_ERR_BUSY && status != FN_ERR_NOT_READY) return status;
         if (status || !stream.actual) {
             if (++idle == 120) { failed = FN_ERR_TIMEOUT; return failed; }
