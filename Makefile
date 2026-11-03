@@ -5,6 +5,7 @@
 #   make           - Build all targets
 #   make atari     - Build for Atari
 #   make disk-atari - Build a bootable Atari ATR
+#   make disk-atari-stream - Build the optional small TCP transport ATR
 #   make disk-msdos - Build an MS-DOS FAT image
 #
 # Other targets: bbc, linux, msdos, amiga, disk-bbc
@@ -115,3 +116,18 @@ test-host: test-host-atari-sio
 .PHONY: test-atari-keyboard
 test-atari-keyboard:
 	soft65c02_unit -b build/tests/key-fallback -i tests/atari/key_fallback.yaml
+
+# Separate outputs ensure packet and stream objects/disks never mix.
+.PHONY: atari-stream disk-atari-stream test-host-stream
+atari-stream:
+	$(MAKE) -f makefiles/build.mk CURRENT_TARGET=atari PROGRAM=$(PROGRAM) ATARI_NETWORK=stream BUILD_DIR=build/atari-stream OBJDIR=obj/atari-stream DISK_IMAGE_DIR=disk-images/atari-stream
+
+disk-atari-stream:
+	$(MAKE) -f makefiles/build.mk CURRENT_TARGET=atari PROGRAM=$(PROGRAM) ATARI_NETWORK=stream BUILD_DIR=build/atari-stream OBJDIR=obj/atari-stream DISK_IMAGE_DIR=disk-images/atari-stream disk
+
+test-host-stream:
+	@mkdir -p build
+	gcc -Wall -Wextra -Werror -std=c99 -D__ATARI__ -D__fastcall__= -DBWC_SMALL_STREAM -DBWC_8BIT_TARGET -U__linux__ -ffunction-sections -fdata-sections -Wl,--gc-sections -Itests/host/stubs -Isrc/include -Isrc/atari -I$(FUJINET_NIO_LIB)/include src/atari/stream/network.c src/common/connection.c tests/host/test_stream_network.c -o build/test_stream_network.host
+	build/test_stream_network.host
+
+test-host: test-host-stream

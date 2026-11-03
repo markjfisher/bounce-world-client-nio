@@ -9,7 +9,7 @@ AMIGA_PROFILE ?=
 AMIGA_CRT ?= clib2
 
 # Disk image output directory (per-target to support future atari .atr etc.)
-DISK_IMAGE_DIR := disk-images/$(CURRENT_TARGET)
+DISK_IMAGE_DIR ?= disk-images/$(CURRENT_TARGET)
 
 # Platform mapping: target -> platform directory name
 CURRENT_PLATFORM_atari := atari
@@ -92,6 +92,15 @@ SOURCES := $(filter-out $(SRCDIR)/common/hex_dump.c,$(SOURCES))
 SOURCES := $(filter-out $(SRCDIR)/common/embedded_shapes.c,$(SOURCES))
 endif
 
+ifeq ($(CURRENT_TARGET),atari)
+ifeq ($(ATARI_NETWORK),stream)
+SOURCES := $(filter-out $(SRCDIR)/atari/sio_mode.c,$(SOURCES))
+SOURCES += $(SRCDIR)/atari/stream/network.c $(SRCDIR)/atari/stream/sio_mode.c
+else ifneq ($(filter $(ATARI_NETWORK),packet),$(ATARI_NETWORK))
+$(error ATARI_NETWORK must be packet or stream)
+endif
+endif
+
 SOURCES := $(strip $(SOURCES))
 
 # Object files: mirror src/* path under obj/<target>/
@@ -155,6 +164,9 @@ LIBS  = $(NIO_LIB_FILE)
 
 # Additional target-specific CFLAGS
 CFLAGS_atari := -DBWC_CUSTOM_CPUTC
+ifeq ($(ATARI_NETWORK),stream)
+CFLAGS_atari += -DBWC_SMALL_STREAM
+endif
 CFLAGS_bbc   :=
 CFLAGS_linux :=
 CFLAGS_msdos :=

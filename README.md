@@ -117,10 +117,17 @@ for the server address and player name. Press Q in the world to disconnect and r
 The animated object gallery sends a keepalive about every 20 seconds (PAL),
 or 17 seconds (NTSC). Press any key to launch the world.
 
+An optional small-stream TCP backend is available with `make disk-atari-stream`.
+It produces `disk-images/atari-stream/bwcn.atr` in separate build directories,
+leaves HSIO/U1MB settings alone and retains AppStore settings. See
+[Atari small-stream mode](docs/atari-small-stream.md) for requirements, measured
+size/update-rate trade-offs, and hardware testing. The packet backend stays default.
+
 The Atari title bitmap is checked in; regenerating it with
 `python3 scripts/generate_atari_title.py` requires Pillow and DejaVu Sans Bold.
 
-On a detected compatible U1MB/Incognito PBI, the client saves the FujiNet
+With the default packet backend, on a detected compatible U1MB/Incognito PBI,
+the client saves the FujiNet
 HSIO index, switches it off and clears the PBI speed caches before enabling
 the game display interrupts. On normal exit it disables those interrupts and
 restores the saved index and clears the caches again. An Atari reset or power

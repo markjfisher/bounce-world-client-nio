@@ -5,7 +5,7 @@
  *
  * Instead of device specs ("N1:tcp://...") and stateless calls, the NIO
  * library uses:
- *   - fn_handle_t  server_handle  : returned by fn_open()
+ *   - fn_handle_t  server_handle  : returned by fn_open() on the packet backend
  *   - uint32_t     read_offset    : cumulative bytes read from the stream
  *   - uint32_t     write_offset   : cumulative bytes written to the stream
  *
@@ -34,6 +34,7 @@
 #include "bwc_perf.h"
 #endif
 #include "connection.h"
+#include "connection_transport.h"
 #include "data.h"
 #include "delay.h"
 #include "screen.h"
@@ -91,7 +92,7 @@ void send_command(void)
     strcat((char *)cmd_tmp, "\x0A");
     len = (uint16_t)strlen((char *)cmd_tmp);
 
-    err = fn_write(server_handle, write_offset,
+    err = bwc_tcp_write(server_handle, write_offset,
                    (const uint8_t *)cmd_tmp, len, &written);
     if (err != FN_OK) {
         handle_err("send_command");
@@ -119,7 +120,7 @@ uint8_t request_client_data(void)
 #ifdef __AMIGA__
         write_t0 = bwc_perf_ticks();
 #endif
-        err = fn_write(server_handle, write_offset,
+        err = bwc_tcp_write(server_handle, write_offset,
                        (const uint8_t *)client_data_cmd,
                        (uint16_t)(len + 1), &written);
 #ifdef __AMIGA__
@@ -179,14 +180,14 @@ void connect_service(void)
 {
     uint8_t result;
 
-    result = fn_init();
+    result = bwc_tcp_init();
     if (result != FN_OK) {
         err = result;
         handle_err("fn_init");
         return;
     }
 
-    result = fn_open(&server_handle, 0, server_url, FN_OPEN_STREAM_NO_PROBE);
+    result = bwc_tcp_open(&server_handle, 0, server_url, FN_OPEN_STREAM_NO_PROBE);
     if (result != FN_OK) {
         err = result;
         handle_err("connect");
@@ -203,7 +204,7 @@ void disconnect_service(void)
     create_command("close");
     append_command(client_str);
     send_command();
-    fn_close(server_handle);
+    bwc_tcp_close(server_handle);
     server_handle = FN_INVALID_HANDLE;
 }
 
@@ -252,7 +253,7 @@ static int16_t read_raw(uint8_t *buf, int16_t len)
 #ifdef __AMIGA__
         bwc_cnt_fn_read++;
 #endif
-        result = fn_read(server_handle,
+        result = bwc_tcp_read(server_handle,
                          read_offset,
                          buf + total,
                          (uint16_t)(len - total),
@@ -370,10 +371,14 @@ int16_t read_response_min(uint8_t *buf, int16_t min_payload, int16_t max_payload
         bwc_cnt_fn_read++;
         read_t0 = bwc_perf_ticks();
 #endif
-        result = fn_read(server_handle,
+        result = bwc_tcp_read(server_handle,
                          read_offset,
                          buf + total,
+#ifdef BWC_SMALL_STREAM
+                         (uint16_t)((have_header ? need_total : PACKET_HEADER_SIZE) - total),
+#else
                          (uint16_t)(max_total - total),
+#endif
                          &bytes_read,
                          &flags);
 #ifdef __AMIGA__

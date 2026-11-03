@@ -58,4 +58,4 @@ copy_tail:
         sta ptr
         rts
 image:
-        .incbin "build/atari-splash-screen.bin"
+        .incbin "atari-splash-screen.bin"
