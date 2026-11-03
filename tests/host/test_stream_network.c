@@ -26,12 +26,14 @@ uint8_t fn_stream_write(fn_stream_io_t *io) {
     if(fault) return fault;
     if(calls==1) return 4;
     n=io->length>17?17:io->length;
-    memcpy(output+sent,io->data,n);sent+=n;io->actual=n;return 0;
+    memcpy(output+sent,io->data,n);sent+=n;io->actual=n;
+    memset(io->received,0xcc,sizeof(io->received)); /* unrelated reply scratch */
+    return 0;
 }
 uint8_t fn_stream_read(fn_stream_io_t *io) {
     unsigned n;
     ++calls;
-    assert(io->length && io->length<=120);
+    assert(io->length==120);
     if(fault) return fault;
     n=end-pos;if(n>io->length)n=io->length;
     if(fragment && n>fragment)n=fragment;
@@ -63,17 +65,43 @@ int main(void) {
         reset();fragment=i;packet(0,245);packet(245,5);end=250;
         memset(guard,0xa5,sizeof(guard));
         assert(read_response_min(guard+1,1,254)==243);
-        assert(pos==245 && guard[0]==0xa5 && guard[257]==0xa5);
+        assert(pos>=245 && pos<=250 && guard[0]==0xa5 && guard[257]==0xa5);
         assert(!memcmp(guard+1,input,245));
         assert(read_response_min(guard+1,1,254)==3 && pos==250);
     }
     reset();packet(0,245);end=245;eof=1;assert(read_response_min(data,1,254)==243);
-    reset();packet(0,300);end=300;assert(read_response_min(data,1,254)==-1 && errors==1 && pos==2);
+    reset();packet(0,300);end=300;assert(read_response_min(data,1,254)==-1 && errors==1 && pos==120);
     reset();packet(0,245);end=100;eof=1;assert(read_response_min(data,1,254)==-1 && errors==1);
     /* Prefix read must drain >120 discarded bytes, preserving next packet. */
     reset();packet(0,400);packet(400,5);end=405;fragment=13;
-    assert(read_response_prefix(data,8)==8 && pos==400);
+    assert(read_response_prefix(data,8)==8 && pos>=400 && pos<=405);
     assert(read_response_min(data,1,254)==3 && pos==405);
+    /* A small world response, including its header, costs ONE wire read. */
+    reset();packet(0,35);end=35;
+    assert(read_response_min(data,1,254)==33 && calls==1);
+    assert(!memcmp(data,input,35));
+    /* Two frames arrive together with EOF. A write between reads must not
+     * overwrite the buffered second frame, or expose EOF before it. */
+    reset();packet(0,35);packet(35,8);end=43;eof=1;
+    assert(read_response_min(data,1,254)==33 && calls==1);
+    assert(!bwc_stream_write((const uint8_t *)"x-w",3,&n));
+    before=calls;
+    assert(read_response_min(data,1,254)==6 && calls==before);
+    assert(!memcmp(data,input+35,8));
+    assert(!bwc_stream_read(data,1,&n,&flags) && n==0 && (flags&FN_READ_EOF));
+    assert(calls==before); /* sticky EOF does not poll the socket */
+    /* Reopen discards unread bytes and EOF; init does the same. */
+    reset();packet(0,35);end=35;eof=1;
+    assert(!bwc_stream_read(data,2,&n,&flags) && n==2 && !(flags&FN_READ_EOF));
+    assert(!bwc_stream_open("tcp://host:1234"));
+    packet(0,9);pos=0;end=9;eof=0;before=calls;
+    assert(read_response_min(data,1,254)==7 && calls==before+1);
+    assert(!memcmp(data,input,9));
+    assert(!bwc_stream_close());
+    assert(!bwc_stream_init());
+    packet(0,120);pos=0;end=120;before=calls;
+    assert(read_response_min(data,1,254)==118 && calls==before+1);
+    assert(!memcmp(data,input,120));
     puts("stream adapter: partial writes, retry poisoning, fragmented frames, bounds, EOF and drain passed");
     return 0;
 }

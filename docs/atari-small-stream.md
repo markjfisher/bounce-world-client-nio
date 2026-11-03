@@ -29,10 +29,17 @@ is required. Other platform builds use their existing packet APIs.
 
 Responses have a two-byte little-endian total length including the header.
 The world payload then has step, status and object count, followed by three bytes
-per object. The TCP adapter reads the length first, validates the existing buffer
-limit, then receives at most 120 bytes at a time. Short reads can split headers
-or object records. Rendering only begins after assembling the complete frame;
-the adapter never asks past its end or consumes the next response accidentally.
+per object. The framing code reads the length first and validates the existing buffer limit.
+Underneath it, the TCP adapter requests up to 120 available bytes whenever its
+read-ahead buffer is empty. Header and payload usually arrive in one wire read
+for small worlds. A short TCP read can still split headers or object records;
+120 is a capacity, not a requirement to wait for a full block.
+
+The adapter gives the framing code only the bytes it requested and retains the
+surplus, even if it belongs to the next response. A separate 120-byte buffer
+keeps that data safe across intervening writes. EOF is delayed until all buffered
+bytes have been delivered. Init, successful open and successful close discard
+buffered state. Rendering begins only after the complete frame is assembled.
 
 The Atari world buffer remains 256 bytes, including the two-byte length and
 three-byte world header: at most 83 three-byte records fit. Chunking does not
@@ -55,25 +62,31 @@ Measured with the same cc65 build and library checkout:
 
 | Metric | Packet (default) | Small stream |
 | --- | ---: | ---: |
-| XEX bytes | 28,938 | 26,015 |
-| CODE bytes | 25,282 | 22,360 |
-| BSS bytes | 2,765 | 2,966 |
-| BSS last address | $93CA | $8928 |
-| 4 objects, fetches/s | 8.08 | 6.33 |
-| 80 objects, fetches/s | 5.17 | 3.01 |
+| XEX bytes | 28,938 | 26,285 |
+| CODE bytes | 25,282 | 22,630 |
+| BSS bytes | 2,765 | 3,089 |
+| BSS last address | $93CA | $8AB1 |
+| 4 objects, fetches/s | 8.08 | 8.83 |
+| 80 objects, fetches/s | 5.17 | 3.47 |
 
-XEX saves 2,923 bytes; BSS grows by 201 bytes; the end of the application's
-allocation moves down by 2,722 bytes. AppStore keeps normal packet infrastructure
+XEX saves 2,653 bytes; BSS grows by 324 bytes; the end of the application's
+allocation moves down by 2,329 bytes. AppStore keeps normal packet infrastructure
 linked, so this does not achieve the same saving as SYN-ACK WIRE. The small
-adapter supplies its own 262-byte context. A C adapter retains the existing
+adapter supplies its own 262-byte context plus 120 bytes of read-ahead data
+and three bytes of read-ahead state. Read-ahead added 270 bytes of executable
+and 123 bytes of BSS relative to the initial stream implementation. A C adapter retains the existing
 application framing API; it is not a claim of the minimum possible ASM footprint.
 
 Rates are headless AltirraSDL + real POSIX NetSIO firmware measurements against
 the same deterministic local peer, with fragmented replies and 22 steady samples
 per count. They measure fetch completion including rendering, not server physics
-UPS or hardware performance. Stream is slower here: header-first reading adds
-an exchange, and large responses require multiple S/T pairs at 19200. This is
-an optional memory/interrupt-compatibility trade-off, not a performance upgrade.
+UPS or hardware performance. Initial header-first wire reads measured 6.33/s
+and 3.01/s; the 120-byte read-ahead changed those to 8.83/s and 3.47/s. It removes
+one S/T pair when the header and small payload arrive together. Large responses
+still require multiple S/T pairs at 19200. Every read reply is padded to 131 wire
+bytes even when fewer than 120 payload bytes are available; read-ahead does not
+remove that protocol cost. These measurements do not guarantee a particular
+hardware rate or a speed-up for every workload.
 
 Polled serial masks CPU IRQs but leaves VBI/DLI active, reserves POKEY channels
 3/4 and serial clock control, and requires RTCLOK to tick. The existing keyboard
@@ -93,7 +106,8 @@ make -C "$FUJINET_NIO_LIB" test-atari-stream
 The host suite mocks the stream API independently and covers partial writes,
 Busy/NotReady, uncertain-result poisoning, split headers/records, packets above
 120 bytes, queued consecutive packets, guard bytes, oversized frames, EOF and
-prefix draining. soft65c02 tests cover the library carrier and Atari keyboard.
+prefix draining, single-read small responses, cached data across writes,
+deferred EOF and cache reset on reopen. soft65c02 tests cover the library carrier and Atari keyboard.
 Both Atari disks and the Linux build compile.
 
 Workspace headless integration (run sequentially; NetSIO uses a shared port):

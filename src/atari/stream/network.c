@@ -6,6 +6,13 @@
 #include "network.h"
 static fn_stream_io_t stream;
 static uint8_t failed;
+/* Keep read-ahead independent of the library reply area: a write between
+ * reads must not discard bytes belonging to the next application frame. */
+static uint8_t pending[FN_STREAM_MAX];
+static uint8_t pending_at, pending_size, pending_flags;
+static void discard_pending(void) {
+    pending_at = pending_size = pending_flags = 0;
+}
 
 /* A failed carrier operation may have succeeded remotely. Stop the session,
  * rather than allowing the caller's generic retries to change that request.
@@ -18,34 +25,55 @@ static uint8_t result(uint8_t status) {
 }
 uint8_t bwc_stream_init(void) {
     failed = 0;
+    discard_pending();
     return result(fn_stream_init(&stream));
 }
 uint8_t bwc_stream_open(const char *url) {
     unsigned int n = strlen(url);
+    uint8_t status;
     if (failed) return failed;
     if (n > FN_STREAM_MAX) return FN_ERR_URL_TOO_LONG;
     stream.length = (uint8_t)n;
     memcpy(stream.data, url, n);
-    return result(fn_stream_open(&stream));
+    status = result(fn_stream_open(&stream));
+    if (!status) discard_pending();
+    return status;
 }
 uint8_t bwc_stream_close(void) {
+    uint8_t status;
     /* Close only while the transaction sequence is known. Next init/open
      * replaces an abandoned connection, without pretending a write was undone. */
     if (failed) return failed;
-    return result(fn_stream_close(&stream));
+    status = result(fn_stream_close(&stream));
+    if (!status) discard_pending();
+    return status;
 }
 uint8_t bwc_stream_read(uint8_t *buf, uint16_t capacity, uint16_t *actual, uint8_t *flags) {
     uint8_t status;
     *actual = 0; *flags = 0;
     if (failed) return failed;
     if (!capacity) return FN_ERR_INVALID;
-    stream.length = capacity > FN_STREAM_MAX ? FN_STREAM_MAX : (uint8_t)capacity;
-    status = result(fn_stream_read(&stream));
-    if (!status) {
-        *actual = stream.actual; *flags = stream.flags;
-        memcpy(buf, stream.received, stream.actual);
+    if (pending_at == pending_size) {
+        if (pending_flags & FN_READ_EOF) { *flags = pending_flags; return FN_OK; }
+        /* Read up to 120 immediately available bytes, not "wait for 120". */
+        stream.length = FN_STREAM_MAX;
+        status = result(fn_stream_read(&stream));
+        if (status) return status;
+        pending_at = 0;
+        pending_size = stream.actual;
+        pending_flags = stream.flags;
+        memcpy(pending, stream.received, pending_size);
     }
-    return status;
+    *actual = pending_size - pending_at;
+    if (*actual > capacity) *actual = capacity;
+    memcpy(buf, pending + pending_at, *actual);
+    pending_at += (uint8_t)*actual;
+    *flags = pending_flags;
+    if (pending_at < pending_size) {
+        /* EOF belongs after all buffered data, including subsequent frames. */
+        *flags = (uint8_t)((*flags & ~FN_READ_EOF) | FN_READ_MORE_AVAILABLE);
+    }
+    return FN_OK;
 }
 uint8_t bwc_stream_write(const uint8_t *buf, uint16_t length, uint16_t *actual) {
     uint8_t status, idle = 0;
